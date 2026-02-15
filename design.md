@@ -55,7 +55,7 @@ flowchart TB
 #### 2.2 Example: Multi-Domain Request Flow
 
 ```mermaid
-%%{init: {'theme': 'dark', 'themeVariables': { 'signalTextColor': '#FFFFFF', 'messageTextColor': '#FFFFFF', 'labelTextColor': '#FFFFFF', 'loopTextColor': '#FFFFFF'}}}%%
+%%{init: {'theme': 'forest'}}%%
 sequenceDiagram
     participant User as 👨‍🌾 Farmer (WhatsApp)
     participant Super as 🧠 Supervisor (VikasGPT)
