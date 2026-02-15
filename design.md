@@ -14,7 +14,7 @@ VikasGPT is a **Conversational Operating System** for rural Indian households, b
 |-------|-----------|-------------|
 | **Interface** | **WhatsApp Business API** | Primary channel for rural users (low data, high trust). |
 | **Linguistics** | **Bhashini API (STT/TTS)** | Handles 22+ regional dialects; converts speech to text for AI processing. |
-| **The Brain** | **Amazon Bedrock** | Hosts **Claude 3.5 Sonnet** (for reasoning) and **Claude 3 Haiku** (for fast slot-filling). |
+| **The Brain** | **Amazon Bedrock** | Hosts **Claude 3.5 Opus** (for reasoning) and **Claude 3 Haiku** (for fast slot-filling). |
 | **Discovery** | **Amazon Q Business** | Enterprise search across ICMR/ICAR knowledge bases for grounded responses. |
 | **Memory** | **Amazon DynamoDB** | Stores the "Case File" (slots) and conversation state persistently. |
 | **Logic** | **AWS Lambda & Step Functions** | Serverless execution of the "Question-Answer" loops and agent hand-offs. |
