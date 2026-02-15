@@ -25,15 +25,6 @@ VikasGPT is a **Conversational Operating System** for rural Indian households, b
 
 ## 3. Architectural Pattern: Stateful Hierarchical Slot-Filling
 
-### 3.1 Why Not Simple RAG?
-
-| Pattern | Description | Risk |
-|---------|-------------|------|
-| **Pattern A: Simple RAG/Chat** | User asks → AI answers immediately | High hallucination risk; no evidence validation |
-| **Pattern B: Agentic Slot-Filling (VikasGPT)** | Agent gathers evidence → Validates → Then responds | Safe, auditable, grounded responses |
-
-### 3.2 The VikasGPT Pattern
-
 We use **Hierarchical Routing** with **Amazon Bedrock Multi-Agent Collaboration**:
 
 1. **Supervisor Agent** identifies the domain (Health/Agri/Welfare)
@@ -41,75 +32,136 @@ We use **Hierarchical Routing** with **Amazon Bedrock Multi-Agent Collaboration*
 3. Only after all required slots are filled does the agent move to the "Resolution" node
 4. **Amazon Q Business** provides enterprise-grade search across verified knowledge bases
 
-### 3.3 System Architecture
+### 3.1 System Architecture (Evidence-First Flow)
 
 ```mermaid
 %%{init: {'theme': 'dark'}}%%
 flowchart TB
-    subgraph User["Rural Household"]
-        WA[WhatsApp Interface]
+    subgraph Input["1. User Input"]
+        User[Farmer Voice Note]
     end
 
-    subgraph Gateway["Gateway Layer"]
-        WABA[WhatsApp Business API]
-        Bhashini[Bhashini NLTM<br/>22 Languages]
-        DigiLocker[DigiLocker<br/>Digital Vault]
+    subgraph Gateway["2. Gateway Layer"]
+        WA[WhatsApp Business API]
+        Bhashini[Bhashini NLTM<br/>Voice to Text]
     end
 
-    subgraph Brain["Orchestration Layer - Amazon Bedrock"]
-        Supervisor[Supervisor Agent<br/>Claude 3.5 Sonnet]
-        Memory[(DynamoDB<br/>Context Graph)]
+    subgraph Orchestration["3. Orchestration Layer"]
+        Supervisor[Supervisor Agent<br/>Intent Detection]
+        Router{Route to<br/>Domain Agent}
     end
 
-    subgraph Workers["Specialized Agents"]
-        Sehat[Sehat Agent<br/>Health]
-        Krishi[Krishi Agent<br/>Agriculture]
-        Yojna[Yojna Agent<br/>Welfare]
-        Dhwani[Dhwani Agent<br/>Logistics]
-        Sahayak[Sahayak Agent<br/>Onboarding]
+    subgraph SlotFilling["4. Evidence Collection - Slot Filling FSM"]
+        CheckSlots{All Slots<br/>Filled?}
+        AskQuestion[Ask ONE<br/>Clarifying Question]
+        SaveSlot[Save Evidence<br/>to DynamoDB]
     end
 
-    subgraph HealthDPI["Health DPI"]
+    subgraph Resolution["5. Grounded Resolution"]
+        RAG[Amazon Bedrock<br/>Knowledge Base Lookup]
+        QBusiness[Amazon Q Business<br/>ICMR/ICAR Search]
+        Validate[Supervisor Validates<br/>Against Evidence]
+    end
+
+    subgraph Output["6. Response"]
+        TTS[Bhashini TTS<br/>Text to Voice]
+        Response[Voice Note<br/>to Farmer]
+    end
+
+    User --> WA
+    WA --> Bhashini
+    Bhashini --> Supervisor
+    Supervisor --> Router
+    Router --> CheckSlots
+    CheckSlots -- No --> AskQuestion
+    AskQuestion --> User
+    User -.-> SaveSlot
+    SaveSlot --> CheckSlots
+    CheckSlots -- Yes --> RAG
+    RAG --> QBusiness
+    QBusiness --> Validate
+    Validate --> TTS
+    TTS --> Response
+```
+
+#### Diagram Explanation: Evidence-First Architecture
+
+This diagram shows the **slot-filling state machine** that ensures grounded responses:
+
+| Phase | Component | Action |
+|-------|-----------|--------|
+| **1. Input** | Farmer | Sends voice note via WhatsApp |
+| **2. Gateway** | Bhashini | Converts voice to text in 22 languages |
+| **3. Orchestration** | Supervisor | Detects intent (Health/Agri/Welfare) and routes to domain agent |
+| **4. Slot Filling** | Worker Agent | Checks if all required evidence slots are filled |
+| | | If NO → Asks ONE clarifying question, saves response, loops back |
+| | | If YES → Proceeds to resolution |
+| **5. Resolution** | Knowledge Base | RAG lookup in ICMR/ICAR verified guidelines via Amazon Q Business |
+| | Supervisor | Validates response against gathered evidence (hallucination prevention) |
+| **6. Output** | Bhashini | Converts text response to voice note |
+
+**Key Principle:** The system **never provides advice** until all evidence slots are filled and the response is validated against verified knowledge bases.
+
+### 3.2 DPI Integration Map
+
+```mermaid
+%%{init: {'theme': 'dark'}}%%
+flowchart LR
+    subgraph Supervisor["Supervisor Agent"]
+        S[Route & Validate]
+    end
+
+    subgraph Workers["Worker Agents"]
+        Sehat[Sehat<br/>Health]
+        Krishi[Krishi<br/>Agriculture]
+        Yojna[Yojna<br/>Welfare]
+        Dhwani[Dhwani<br/>Logistics]
+        Sahayak[Sahayak<br/>Onboarding]
+    end
+
+    subgraph GatewayDPI["Gateway DPIs"]
+        Bhashini[Bhashini]
+        DigiLocker[DigiLocker]
+    end
+
+    subgraph HealthDPI["Health DPIs"]
         ABHA[ABHA/ABDM]
-        eSanjeevani[eSanjeevani]
-        JanAushadhi[Jan Aushadhi Sugam]
+        eSanj[eSanjeevani]
+        JanAush[Jan Aushadhi]
     end
 
-    subgraph AgriDPI["Agriculture DPI"]
+    subgraph AgriDPI["Agriculture DPIs"]
         AgriStack[AgriStack]
-        eNAM[e-NAM / AGMARKNET]
+        eNAM[e-NAM]
         VISTAAR[Bharat-VISTAAR]
         NPSS[NPSS]
     end
 
-    subgraph WelfareDPI["Welfare DPI"]
+    subgraph WelfareDPI["Welfare DPIs"]
         MyScheme[myScheme]
-        PMKisan[PM-Kisan / PMFBY]
+        PMKisan[PM-Kisan]
         UMANG[UMANG]
     end
 
-    subgraph LogisticsDPI["Logistics DPI"]
-        ONDC[ONDC Network]
-        IndiaPost[India Post]
+    subgraph LogDPI["Logistics DPIs"]
+        ONDC[ONDC]
+        Post[India Post]
     end
 
-    subgraph IdentityDPI["Identity DPI"]
-        UIDAI[UIDAI Aadhaar]
+    subgraph IdDPI["Identity DPI"]
+        UIDAI[Aadhaar]
     end
 
-    WA <--> WABA
-    WABA <--> Bhashini
-    Bhashini <--> Supervisor
-    Supervisor <--> Memory
-    Supervisor <--> DigiLocker
-    Supervisor <--> Sehat
-    Supervisor <--> Krishi
-    Supervisor <--> Yojna
-    Supervisor <--> Dhwani
-    Supervisor <--> Sahayak
+    S <--> Bhashini
+    S <--> DigiLocker
+    S <--> Sehat
+    S <--> Krishi
+    S <--> Yojna
+    S <--> Dhwani
+    S <--> Sahayak
     Sehat <--> ABHA
-    Sehat <--> eSanjeevani
-    Sehat <--> JanAushadhi
+    Sehat <--> eSanj
+    Sehat <--> JanAush
     Krishi <--> AgriStack
     Krishi <--> eNAM
     Krishi <--> VISTAAR
@@ -118,21 +170,20 @@ flowchart TB
     Yojna <--> PMKisan
     Yojna <--> UMANG
     Dhwani <--> ONDC
-    Dhwani <--> IndiaPost
+    Dhwani <--> Post
     Sahayak <--> UIDAI
 ```
 
-#### Diagram Explanation: System Architecture
+#### Diagram Explanation: DPI Integration
 
-This diagram illustrates the complete VikasGPT architecture with all integrated government DPIs:
-
-| Layer | Components | Description |
-|-------|------------|-------------|
-| **User Layer** | WhatsApp | The farmer interacts via voice notes on WhatsApp - no app download required |
-| **Gateway Layer** | WhatsApp Business API, Bhashini, DigiLocker | Receives messages, translates 22 languages to English, and accesses verified documents |
-| **Orchestration Layer** | Supervisor Agent + DynamoDB | The "brain" that routes requests to specialized agents and maintains conversation state |
-| **Worker Agents** | Sehat, Krishi, Yojna, Dhwani, Sahayak | Domain-specific agents that gather evidence and provide grounded responses |
-| **DPI Layer** | 15+ Government APIs | Real-time integration with India's Digital Public Infrastructure |
+| Agent | Connected DPIs | Purpose |
+|-------|----------------|---------|
+| **Supervisor** | Bhashini, DigiLocker | Language translation, verified document access |
+| **Sehat** | ABHA, eSanjeevani, Jan Aushadhi | Health records, tele-consultation, medicine locator |
+| **Krishi** | AgriStack, e-NAM, Bharat-VISTAAR, NPSS | Farmer ID, Mandi prices, ICAR advisory, pest detection |
+| **Yojna** | myScheme, PM-Kisan, UMANG | 2000+ schemes, income support, 1200+ services |
+| **Dhwani** | ONDC, India Post | Transport booking, remote delivery |
+| **Sahayak** | UIDAI (Aadhaar) | e-KYC, OTP-based onboarding |
 
 ---
 
@@ -284,41 +335,7 @@ This sequence showcases **parallel multi-agent coordination** for complex reques
 | **Dhwani** | Logistics | Pickup_Location, Destination, Cargo_Type, Weight | ONDC Network, India Post | Transport booking, physical delivery in remote areas |
 | **Sahayak** | Onboarding | Name, Mobile, Aadhaar_Consent | UIDAI (Aadhaar) | e-KYC, OTP-based user registration |
 
-### 5.2 Agent Schema Examples
-
-**Krishi Agent Evidence Schema:**
-```json
-{
-  "agent": "krishi",
-  "required_slots": [
-    {"slot": "crop_type", "question": "What crop are you growing?"},
-    {"slot": "growth_stage", "question": "What is the current stage - seedling, flowering, or harvest?"},
-    {"slot": "visual_symptoms", "question": "Can you describe or send a photo of the problem?"},
-    {"slot": "soil_history", "question": "What fertilizers have you used recently?"}
-  ],
-  "resolution_trigger": "all_slots_filled",
-  "knowledge_base": "icar-crop-advisory-kb",
-  "tools": ["enam_price_lookup", "weather_api", "image_analysis"]
-}
-```
-
-**Sehat Agent Evidence Schema:**
-```json
-{
-  "agent": "sehat",
-  "required_slots": [
-    {"slot": "symptoms", "question": "What symptoms are you experiencing?"},
-    {"slot": "duration", "question": "How many days have you had these symptoms?"},
-    {"slot": "location", "question": "Where exactly do you feel the problem?"},
-    {"slot": "intensity", "question": "On a scale of 1-10, how severe is the pain?"}
-  ],
-  "resolution_trigger": "all_slots_filled",
-  "knowledge_base": "icmr-health-protocols-kb",
-  "guardrails": ["medical_advice_filter", "emergency_escalation"]
-}
-```
-
-### 5.3 Sahayak Agent: Missing Account Fallback
+### 5.2 Sahayak Agent: Missing Account Fallback
 
 ```mermaid
 %%{init: {'theme': 'neutral'}}%%
@@ -374,13 +391,15 @@ This flowchart illustrates the **failsafe onboarding process** for users without
 
 ### 6.1 Context Switching
 
-The Supervisor handles mid-conversation domain switches using **Shared Memory**:
+The Supervisor handles mid-conversation domain switches using **Shared Memory** stored in DynamoDB. Each conversation maintains a context graph that tracks active agents, filled slots, and pending tasks.
 
-```
-User: "My wheat has some disease" → Krishi Agent activated
-User: "Also I have fever" → Supervisor pauses Krishi, activates Sehat
-User: "Continue about wheat" → Supervisor resumes Krishi with saved state
-```
+| Turn | User Message | Supervisor Action | Active Agent | Saved State |
+|------|--------------|-------------------|--------------|-------------|
+| 1 | "My wheat has some disease" | Detect Agri intent | Krishi | crop: wheat, issue: disease |
+| 2 | "Also I have fever" | Pause Krishi, switch domain | Sehat | Krishi state saved to memory |
+| 3 | "Continue about wheat" | Resume Krishi | Krishi | Restored: crop: wheat, issue: disease |
+
+This enables **seamless multi-domain conversations** without losing context.
 
 ### 6.2 Agent Handoff Rules
 
@@ -390,6 +409,7 @@ User: "Continue about wheat" → Supervisor resumes Krishi with saved state
 | Harvest Ready | Krishi | Dhwani | All harvest slots confirmed |
 | Missing ID | Any | Sahayak | DPI lookup returns "Not Found" |
 | Emergency | Sehat | Human Escalation | Red-level triage detected |
+| Task Complete | Any Worker | Supervisor | All slots filled, response delivered |
 
 ---
 
