@@ -389,17 +389,31 @@ This flowchart illustrates the **failsafe onboarding process** for users without
 
 ## 6. State Management & Handoff Logic
 
-### 6.1 Context Switching
+### 6.1 Shared Context Graph (Blackboard Pattern)
 
-The Supervisor handles mid-conversation domain switches using **Shared Memory** stored in DynamoDB. Each conversation maintains a context graph that tracks active agents, filled slots, and pending tasks.
+To prevent agents from acting like total strangers, we implement a **Shared Case File** using the Blackboard Pattern. All agents read from and write to a shared context graph stored in DynamoDB.
 
-| Turn | User Message | Supervisor Action | Active Agent | Saved State |
-|------|--------------|-------------------|--------------|-------------|
-| 1 | "My wheat has some disease" | Detect Agri intent | Krishi | crop: wheat, issue: disease |
-| 2 | "Also I have fever" | Pause Krishi, switch domain | Sehat | Krishi state saved to memory |
-| 3 | "Continue about wheat" | Resume Krishi | Krishi | Restored: crop: wheat, issue: disease |
+**How It Works:**
 
-This enables **seamless multi-domain conversations** without losing context.
+1. **Agent Writes Discovery** — When an agent discovers critical information, it writes to the shared state
+2. **Other Agents Read Context** — Before responding, agents read the shared state to provide contextually-aware advice
+3. **Cross-Domain Intelligence** — Agents can connect insights across health, agriculture, and welfare domains
+
+**Example: Heat Exhaustion + Crop Advisory**
+
+| Step | Agent | Action | Shared State Update |
+|------|-------|--------|---------------------|
+| 1 | Sehat | Diagnoses "extreme heat exhaustion" | `health.condition: heat_exhaustion, health.severity: extreme` |
+| 2 | Krishi | Reads shared state before crop advisory | — |
+| 3 | Krishi | Provides context-aware response | `agri.recommendation: indoor_alternative` |
+
+**Without Blackboard Pattern:**
+> "Your tomatoes need water."
+
+**With Blackboard Pattern:**
+> "Since you have heat exhaustion, please stay indoors. I've found an automated irrigation subsidy you can apply for so you don't have to go to the field today."
+
+This enables **intelligent cross-domain conversations** where agents collaborate rather than operate in isolation.
 
 ### 6.2 Agent Handoff Rules
 
@@ -473,15 +487,3 @@ This enables **seamless multi-domain conversations** without losing context.
 - **Emergency Escalation:** Routes red-level cases to human operators
 
 ---
-
-## 9. Failsafe Design Principles
-
-This architecture is designed to be **Failsafe**:
-
-| Scenario | System Response |
-|----------|-----------------|
-| User doesn't know what to say | Interview Logic guides with one question at a time |
-| User doesn't have a government ID | Sahayak Agent creates account via voice OTP |
-| User has a cross-domain crisis | Supervisor coordinates multiple agents in parallel |
-| Agent service is offline | Graceful degradation with fallback message |
-| Network is slow (2G/3G) | Voice notes compressed; async processing enabled |
