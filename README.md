@@ -121,42 +121,6 @@ Existing solutions require apps, literacy, and high-speed internet — none of w
 
 ---
 
-## Getting Started
-
-### Prerequisites
-- AWS Account with Bedrock access (ap-south-1 region)
-- WhatsApp Business API access
-- Bhashini API credentials
-
-### Quick Start
-```bash
-# Clone the repository
-git clone https://github.com/your-org/vikasgpt.git
-cd vikasgpt
-
-# Deploy infrastructure (AWS CDK)
-cd infrastructure
-npm install
-cdk deploy
-
-# Configure environment
-cp .env.example .env
-# Add your API keys to .env
-```
-
----
-
-## Hackathon Submission
-
-This project is built for the **AWS Hackathon** with a focus on:
-- ✅ Amazon Bedrock Multi-Agent Collaboration
-- ✅ Amazon Q Business for enterprise search
-- ✅ Amazon Bedrock Knowledge Bases for RAG
-- ✅ Serverless architecture on AWS Lambda
-- ✅ India-specific DPI integrations
-
----
-
 ## Team
 
 Built with ❤️ for Rural India
