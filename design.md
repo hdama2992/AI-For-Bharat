@@ -1,11 +1,15 @@
 # Design Document: VikasGPT (Conversational OS)
 
 ## 1. Unified Multi-Agent Framework
-VikasGPT is built on a **Supervisor-Worker** multi-agent architecture designed to handle concurrent tasks across health, wealth, and welfare domains through a single conversational thread.
+VikasGPT is built on a **Supervisor-Worker** multi-agent architecture. It moves beyond "Q&A" to **Interactive Consulting**, using a state-aware loop to gather evidence before providing advice.
 
-### 2. Multi-Agent Orchestration Detail
+## 2. Evidence-Based Orchestration (Slot-Filling)
+The system treats every interaction as a "Case File." No worker agent provides a resolution until the **Evidence Frame** is complete.
 
-#### 2.1 System Architecture
+* **Stateful Memory:** Uses Amazon DynamoDB to track "Slots" (Evidence units).
+* **Investigation Mode:** If a user says "I have a cough," the Supervisor identifies a missing slot: `[Duration]`. It pauses the resolution and generates a voice question: *"I understand. How many days have you had this cough?"*
+
+### 2.1 System Architecture
 
 ```mermaid
 %%{init: {'theme': 'dark'}}%%
@@ -52,7 +56,7 @@ flowchart TB
     Dhwani <--> ONDC
 ```
 
-#### 2.2 Example: Multi-Domain Request Flow
+### 2.2 Example: Multi-Domain Request Flow
 
 ```mermaid
 %%{init: {'theme': 'forest'}}%%
@@ -78,19 +82,63 @@ sequenceDiagram
     Super->>User: "You have heatstroke, please rest. I've also found a relief scheme for your heat-stressed crops. Should I apply for you?"
 ```
 
-#### 2.3 Supervisor Agent (The Brain)
-* **Technology:** Amazon Bedrock (Claude 3.5 Sonnet).
-    * **Logic:** Employs a **Hierarchical Orchestration** model. It decomposes complex user inputs (e.g., "I'm sick and my onions are rotting") into parallel sub-tasks.
-    * **State Management:** Uses **Shared Memory** to maintain context across agents, ensuring the Sehat agent knows the Krishi agent's findings for cross-domain insights.
+## 3. Integrated Specialized Workers
 
-### 3. Integrated Specialized Workers
-* **Sehat Agent (Health):** * **Data Source:** Connects via **ABHA Sandbox** APIs to medical records.
-    * **Logic:** Uses RAG (Retrieval-Augmented Generation) grounded in **ICMR triage protocols** to classify cases into Green/Yellow/Red severity levels.
-* **Krishi Agent (Agri):** * **Integrations:** **Bharat-VISTAAR** for advisory and **eNAM** for real-time Mandi price parity.
-    * **Tools:** Implements a **Vision-Language Model (VLM)** for pest and disease identification from user-uploaded images.
-* **Yojna Agent (Social Welfare):** * **Logic:** A proactive "Scanning Agent" that continuously matches the household's profile (from AgriStack) against **myScheme** databases to find eligible subsidies.
-* **Dhwani Agent (Logistics):** * **Execution:** Acts as the "Tool Agent" to book services via **ONDC** shared mobility rails and **India Post** APIs.
+* **Sehat Agent (Health):**
+    * **Evidence Slots:** [Symptoms, Location, Duration, Intensity, History].
+    * **Grounding:** RAG-based lookup in ICMR manuals via Amazon Bedrock.
+* **Krishi Agent (Agri):**
+    * **Evidence Slots:** [Crop_Type, Growth_Stage, Visual_Symptoms, Soil_History].
+    * **Tools:** Multimodal image analysis for "Evidence Photos" of pests.
+* **Yojna Agent (Welfare):**
+    * **Evidence Slots:** [Aadhaar_Linked, Income_Bracket, Land_Holding].
+    * **Logic:** Matches "Life Events" from other agents to subsidies.
+* **Sahayak Agent (Onboarding):**
+    * **Function:** Bridges the gap for users without ABHA/AgriStack IDs.
+    * **Logic:** Manages voice-based OTP authentication and account provisioning.
 
-### 4. Security & Compliance (Privacy-by-Design)
-* **Dual-Vault Encryption:** Data is logically separated into a "Health Vault" and "Wealth Vault" using different **AWS KMS keys**.
-* **Governance:** Implements a **Reviewer Agent** (Critique Mechanism) to validate advice against government safety standards before transmission to the user, mitigating hallucinations.
+### 3.1 Sahayak Agent: Missing Account Fallback
+
+```mermaid
+%%{init: {'theme': 'neutral'}}%%
+flowchart TD
+    subgraph Supervisor["🧠 Supervisor Agent"]
+        CheckID{ID Exists?}
+    end
+
+    subgraph Sahayak["🤝 Sahayak (Onboarding) Agent"]
+        CollectData[Collect Basic PII via Voice]
+        TriggerOTP[Request Gov OTP]
+        VerifyOTP[Verify OTP & Create ID]
+    end
+
+    subgraph DPI["🏛️ Government DPI"]
+        ABHA_API[ABDM API]
+        Agri_API[AgriStack API]
+    end
+
+    CheckID -- No --> CollectData
+    CollectData -- Voice Input --> TriggerOTP
+    TriggerOTP -- API Call --> ABHA_API
+    ABHA_API -- SMS to User --> User((Farmer))
+    User -- Speaks OTP --> VerifyOTP
+    VerifyOTP -- Validation --> Agri_API
+    Agri_API -- Account Created --> CheckID
+    CheckID -- Yes --> Success[Resume Task Execution]
+```
+
+## 4. Technical Stack
+* **Language:** Bhashini API (Speech-to-Speech in 22 dialects).
+* **Brain:** Amazon Bedrock (Claude 3.5 Sonnet) for agent reasoning.
+* **Execution:** AWS Step Functions to manage the "Interview State" and fallback logic.
+* **Security:** AWS KMS Dual-Vault encryption (Health vs. Wealth isolation).
+
+---
+
+## 💡 Failsafe Design Principles
+
+This architecture is designed to be **Failsafe**:
+
+1. **If the user doesn't know what to say** → The Interview Logic guides them with one question at a time.
+2. **If the user doesn't have an account** → The Sahayak Agent builds it via voice-based OTP.
+3. **If the user has a cross-domain crisis** → The Supervisor coordinates all relevant agents in parallel.
