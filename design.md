@@ -1,29 +1,29 @@
-# Design Document: Asha-GPT (Conversational OS)
+# Design Document: VikasGPT (Conversational OS)
 
 ## 1. System Overview
-[cite_start]Asha-GPT is a "Conversational Operating System" designed as a unified WhatsApp gateway for rural Indian households[cite: 21]. [cite_start]It employs a voice-first, multi-agent architecture to integrate healthcare and agricultural advisory services through a single conversational interface[cite: 22, 53].
+VikasGPT is a "Conversational Operating System" designed as a unified WhatsApp gateway for rural Indian households. It serves as a bridge between complex Digital Public Infrastructure (DPI) and the end-user, providing voice-first access to health and wealth resources.
 
-## 2. Technical Architecture
-[cite_start]The system is built on a serverless AWS stack for high scalability and cost-efficiency[cite: 59, 119].
+## 2. Multi-Agent Architecture
+The system uses an orchestrator-worker pattern to decompose complex household requests into specialized tasks.
 
-### 2.1 User & Translation Layer
-* [cite_start]**Interface:** WhatsApp Business API (Meta Cloud API) for high resilience on 2G/3G networks[cite: 61, 133].
-* [cite_start]**Translation Service:** Bhashini API integration for real-time Automated Speech Recognition (ASR) and Text-to-Speech (TTS) in 22+ regional dialects[cite: 62, 108, 134].
+### 2.1 Agentic Workflow Diagram
 
-### 2.2 Logic & AI Layer (The "Brain")
-* [cite_start]**Orchestration:** AWS Lambda functions serve as the "Conversation Manager," handling intent routing and session management[cite: 66, 68, 71].
-* [cite_start]**Core AI Engine:** Amazon Bedrock utilizing Claude for reasoning and triage, plus multimodal capabilities for image analysis (Pest-Vision)[cite: 70, 74, 113].
-* [cite_start]**Grounding (RAG):** Amazon Bedrock Knowledge Bases and Amazon Q provide Retrieval-Augmented Generation to ensure responses are grounded in verified ICMR, ICAR, and government datasets[cite: 77, 84, 115].
+### 2.2 Core Agents & Responsibilities
+* **The Orchestrator (Supervisor Agent):** Acting as the "Brain," this agent uses Amazon Bedrock (Claude) to analyze user intent and route tasks to specialized workers.
+* **The Health Agent (Sehat-Bot):** Integrated with ABDM/ABHA, it performs voice-based triage and interacts with eSanjeevani guidelines.
+* **The Agriculture Agent (Krishi-Bot):** Powered by Bharat-VISTAAR, it provides crop-specific advisory and connects to eNAM for market prices.
+* **The Logistics Agent (Dhwani-Agent):** Interfaces with ONDC rails and India Post to coordinate physical movement of goods.
 
-### 2.3 Data Layer (Dual-Sandbox Architecture)
-[cite_start]To comply with the DPDP Act 2023, the system utilizes a "Dual-Vault" design[cite: 28, 88]:
-* [cite_start]**Krishi Vault (Agri):** Amazon DynamoDB storing farm profiles, crop history, and market preferences[cite: 90, 95].
-* [cite_start]**Sehat Vault (Health):** Amazon DynamoDB storing health records and triage history, linked via ABHA ID[cite: 93, 102].
-* [cite_start]**Security:** Encrypted using separate AWS KMS keys (Key-A for Agri, Key-B for Health) to prevent unauthorized cross-access[cite: 103, 104, 124].
+## 3. Technical Stack
+* **Interface:** WhatsApp Business API for low-bandwidth 2G/3G resilience.
+* **Language Engine:** Bhashini API for 22+ regional dialect translation.
+* **Compute:** AWS Lambda (Serverless) for event-driven orchestration.
+* **Data Grounding:** Amazon Bedrock Knowledge Bases (RAG) ensuring responses are anchored in verified ICMR and ICAR data.
 
-## 3. Key Innovation: Household Context Graph
-[cite_start]The system implements a unified data model that links crop cycles, financial capacity, and health status[cite: 141]. [cite_start]This allows the AI to provide cross-domain insights, such as recommending non-toxic pesticides specifically when a pregnant family member is detected in the household records[cite: 55, 56].
+## 4. Household Context Graph
 
-## 4. External DPI Integrations
-* [cite_start]**Health:** ABDM/ABHA Sandbox for health record linkage and eSanjeevani for triage guidelines[cite: 43, 109].
-* [cite_start]**Agriculture:** eNAM/Agmarknet APIs for real-time Mandi price feeds and ICAR databases for pest identification[cite: 34, 37, 108].
+VikasGPT maintains a "Context Graph" that understands the household as a single economic unit. For instance, if the Agriculture Agent detects a crop loss, the Health Agent is alerted to prioritize stress-related wellness checks.
+
+## 5. Security & Privacy
+* **Dual-Vault Storage:** Medical (ABHA) and Agricultural data are stored in separate encrypted DynamoDB tables.
+* **DPDP Compliance:** Implements granular, voice-based consent for every data retrieval action.
