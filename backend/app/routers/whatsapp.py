@@ -3,10 +3,10 @@ WhatsApp webhook and temporary media hosting for the prototype.
 """
 import base64
 import binascii
+from xml.sax.saxutils import escape
 
 import httpx
 from fastapi import APIRouter, Form, HTTPException, Request, Response
-from twilio.twiml.messaging_response import MessagingResponse
 
 from app.config import get_settings
 from app.db.memory import (
@@ -42,6 +42,11 @@ async def download_audio(media_url: str) -> bytes:
 def _build_media_url(media_id: str) -> str:
     base = settings.public_base_url.rstrip("/")
     return f"{base}/api/v1/whatsapp/media/{media_id}"
+
+
+def _build_status_callback_url() -> str:
+    base = settings.public_base_url.rstrip("/")
+    return f"{base}/api/v1/whatsapp/status-callback"
 
 
 def _voice_retry_message() -> str:
@@ -81,13 +86,14 @@ async def _create_voice_reply_url(text: str) -> str | None:
 
 
 def _build_whatsapp_response(reply_text: str, media_url: str | None = None) -> str:
-    response = MessagingResponse()
-    if media_url:
-        message = response.message(reply_text[:700])
-        message.media(media_url)
-    else:
-        response.message(reply_text[:1200])
-    return str(response)
+    status_url = escape(_build_status_callback_url())
+    body = escape((reply_text[:700] if media_url else reply_text[:1200]))
+    media_xml = f"<Media>{escape(media_url)}</Media>" if media_url else ""
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        f'<Response><Message action="{status_url}" method="POST" statusCallback="{status_url}">'
+        f"<Body>{body}</Body>{media_xml}</Message></Response>"
+    )
 
 
 def _store_turn(from_number: str, role: str, content: str) -> None:
