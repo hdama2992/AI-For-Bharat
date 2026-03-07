@@ -42,16 +42,15 @@ export default function HouseholdContextBanner({
   const [insights, setInsights] = useState<Insight[]>([]);
   const [open, setOpen] = useState(true);
 
-  const fetchInsights = async () => {
-    try {
-      const data = await getContextInsights(householdId);
-      setInsights(data);
-    } catch {}
-  };
-
   useEffect(() => {
-    fetchInsights();
-    const interval = setInterval(fetchInsights, 30000);
+    const load = async () => {
+      try {
+        const data = await getContextInsights(householdId);
+        setInsights(data);
+      } catch {}
+    };
+    load();
+    const interval = setInterval(load, 30000);
     return () => clearInterval(interval);
   }, [householdId]);
 

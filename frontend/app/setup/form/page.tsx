@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { createHousehold } from "@/lib/api";
+import { HouseholdCreatePayload, createHousehold } from "@/lib/api";
 import toast from "react-hot-toast";
 
 const STATES = ["Madhya Pradesh", "Rajasthan", "Uttar Pradesh", "Maharashtra", "Telangana", "Bihar"];
@@ -76,12 +76,19 @@ export default function SetupFormPage() {
     if (!form.name.trim()) { toast.error("Please enter your name"); return; }
     setLoading(true);
     try {
-      const payload = {
+      const payload: HouseholdCreatePayload = {
         ...form,
-        land_acres: parseFloat(form.land_acres) || 0,
+        land_acres: parseFloat(form.land_acres) || undefined,
         family_members: members
           .filter(m => m.name.trim())
-          .map(m => ({ ...m, age: parseInt(m.age) || 30, conditions: [] })),
+          .map(m => ({
+            name: m.name.trim(),
+            age: parseInt(m.age, 10) || 30,
+            relation: m.relation,
+            gender: undefined,
+            is_pregnant: m.is_pregnant,
+            chronic_conditions: [],
+          })),
       };
       const res = await createHousehold(payload);
       localStorage.setItem("household_id", res.household_id);
@@ -252,7 +259,7 @@ export default function SetupFormPage() {
             disabled={loading}
             className="w-full bg-asha-green text-white py-4 rounded-2xl text-base font-bold disabled:opacity-60"
           >
-            {loading ? "Setting up..." : "Start Using Asha-GPT"}
+            {loading ? "Setting up..." : "Start Using VikasGPT"}
           </button>
         )}
       </div>

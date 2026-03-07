@@ -146,7 +146,7 @@ export default function PestPage() {
         {loading && (
           <div className="bg-white rounded-2xl p-6 border border-gray-200 text-center">
             <div className="text-4xl mb-3 animate-bounce">🌿</div>
-            <p className="text-gray-600 font-medium">Asha is analyzing your crop...</p>
+            <p className="text-gray-600 font-medium">Vikas is analyzing your crop...</p>
             <p className="text-gray-400 text-sm mt-1">Checking ICAR pest database</p>
             <div className="flex justify-center gap-1.5 mt-4">
               {[0,1,2].map(i => (

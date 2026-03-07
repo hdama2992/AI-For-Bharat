@@ -1,7 +1,7 @@
 type Lang = "en" | "hi";
 
 const strings: Record<string, Record<Lang, string>> = {
-  appName: { en: "Asha-GPT", hi: "आशा-GPT" },
+  appName: { en: "VikasGPT", hi: "विकास-GPT" },
   tagline: { en: "Your trusted health & wealth companion", hi: "आपका विश्वसनीय स्वास्थ्य और आय सहायक" },
   mandi: { en: "Mandi Advisor", hi: "मंडी सलाहकार" },
   pest: { en: "Pest-Vision", hi: "कीट-दृष्टि" },
