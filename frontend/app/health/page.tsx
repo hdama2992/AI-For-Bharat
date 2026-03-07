@@ -53,7 +53,7 @@ export default function HealthPage() {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "assistant",
-      content: "Namaste 🙏 I'm Asha, your health advisor. Please tell me — what symptoms are you or a family member experiencing?\n\nनमस्ते 🙏 मैं आशा हूं, आपका स्वास्थ्य सहायक। बताइए — आप या आपके परिवार में क्या तकलीफ है?",
+      content: "Namaste 🙏 I'm Vikas, your health advisor. Please tell me — what symptoms are you or a family member experiencing?\n\nनमस्ते 🙏 मैं विकास हूं, आपका स्वास्थ्य सहायक। बताइए — आप या आपके परिवार में क्या तकलीफ है?",
     },
   ]);
   const [input, setInput] = useState("");
@@ -67,7 +67,7 @@ export default function HealthPage() {
   const recognitionRef = useRef<any>(null);
   const whatsappNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "+14155238886";
   const whatsappDigits = whatsappNumber.replace(/\D/g, "");
-  const whatsappUrl = whatsappDigits ? `https://wa.me/${whatsappDigits}?text=${encodeURIComponent("Namaste Asha")}` : null;
+  const whatsappUrl = whatsappDigits ? `https://wa.me/${whatsappDigits}?text=${encodeURIComponent("Namaste Vikas")}` : null;
 
   useEffect(() => {
     const id = localStorage.getItem("household_id");
@@ -190,7 +190,7 @@ export default function HealthPage() {
   const resetChat = () => {
     setMessages([{
       role: "assistant",
-      content: "Namaste 🙏 I'm Asha, your health advisor. Please tell me — what symptoms are you or a family member experiencing?\n\nनमस्ते 🙏 मैं आशा हूं, आपका स्वास्थ्य सहायक। बताइए — आप या आपके परिवार में क्या तकलीफ है?",
+      content: "Namaste 🙏 I'm Vikas, your health advisor. Please tell me — what symptoms are you or a family member experiencing?\n\nनमस्ते 🙏 मैं विकास हूं, आपका स्वास्थ्य सहायक। बताइए — आप या आपके परिवार में क्या तकलीफ है?",
     }]);
     setTriage(null);
     setInput("");
@@ -331,7 +331,7 @@ export default function HealthPage() {
             rel="noreferrer"
             className="mb-2 flex items-center justify-center rounded-xl border border-green-200 bg-green-50 px-3 py-2 text-xs font-medium text-green-700"
           >
-            Need to continue on WhatsApp? Open Asha WhatsApp
+            Need to continue on WhatsApp? Open VikasGPT WhatsApp
           </a>
         )}
         <div className="flex items-end gap-2">

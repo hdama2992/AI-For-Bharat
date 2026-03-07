@@ -64,7 +64,7 @@ export default function SetupEntryPage() {
       {/* Header */}
       <div className="bg-asha-teal text-white px-4 pt-12 pb-6 text-center">
         <div className="text-5xl mb-3">🌿</div>
-        <h1 className="text-2xl font-bold">Asha-GPT में आपका स्वागत है</h1>
+        <h1 className="text-2xl font-bold">VikasGPT में आपका स्वागत है</h1>
         <p className="text-white/70 text-sm mt-1">Welcome to your AI farming companion</p>
       </div>
 
@@ -141,7 +141,7 @@ export default function SetupEntryPage() {
             आवाज़ से शुरू करें
           </button>
           <p className="text-center text-xs text-gray-400">
-            आशा हिंदी में सवाल पूछेगी — बस बोलिए
+            विकास हिंदी में सवाल पूछेगा — बस बोलिए
           </p>
         </div>
 

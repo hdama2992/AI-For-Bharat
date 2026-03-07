@@ -43,7 +43,7 @@ export default function DashboardPage() {
   const whatsappNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "+14155238886";
   const whatsappJoinText = process.env.NEXT_PUBLIC_WHATSAPP_JOIN_TEXT || "";
   const whatsappDigits = whatsappNumber.replace(/\D/g, "");
-  const whatsappPrompt = encodeURIComponent(whatsappJoinText || "Namaste Asha");
+  const whatsappPrompt = encodeURIComponent(whatsappJoinText || "Namaste Vikas");
   const whatsappUrl = whatsappDigits ? `https://wa.me/${whatsappDigits}?text=${whatsappPrompt}` : null;
 
   useEffect(() => {
@@ -126,12 +126,12 @@ export default function DashboardPage() {
           <div className="bg-white rounded-2xl p-4 border border-green-200 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-wide text-green-700">WhatsApp Demo</p>
             <h2 className="text-base font-bold text-gray-800 mt-1">
-              {lang === "en" ? "Use Asha on WhatsApp" : "WhatsApp पर आशा से बात करें"}
+              {lang === "en" ? "Use VikasGPT on WhatsApp" : "WhatsApp पर विकास से बात करें"}
             </h2>
             <p className="text-sm text-gray-600 mt-1">
               {lang === "en"
-                ? "Send a voice note about a health issue. Asha will reply with triage guidance."
-                : "स्वास्थ्य समस्या का voice note भेजें। आशा triage guidance के साथ जवाब देगी।"}
+                ? "Send a voice note about a health issue. Vikas will reply with triage guidance."
+                : "स्वास्थ्य समस्या का voice note भेजें। विकास triage guidance के साथ जवाब देगी।"}
             </p>
             {whatsappJoinText && (
               <p className="text-xs text-gray-500 mt-2">

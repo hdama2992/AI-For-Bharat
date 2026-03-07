@@ -15,7 +15,7 @@ interface Question {
 const QUESTIONS: Question[] = [
   {
     id: "name",
-    text: "नमस्ते! मैं आशा हूं। पहले मुझे अपना नाम बताइए।",
+    text: "नमस्ते! मैं विकास हूं। पहले मुझे अपना नाम बताइए।",
     confirmText: (v) => `PM-KISAN record से मिला कि आपका नाम ${v} है — क्या यह सही है?`,
   },
   {
@@ -284,7 +284,7 @@ export default function VoiceOnboardPage() {
         {/* ── SPEAKING / LISTENING / PROCESSING states ── */}
         {(voiceStep === "idle" || voiceStep === "speaking" || voiceStep === "listening" || voiceStep === "processing") && !showFallback && (
           <>
-            {/* Asha avatar */}
+            {/* Vikas avatar */}
             <div className={`w-28 h-28 rounded-full bg-asha-teal flex items-center justify-center text-5xl shadow-lg transition-all
               ${voiceStep === "listening" ? "ring-4 ring-asha-light ring-offset-4 animate-pulse" : ""}
               ${voiceStep === "speaking" ? "ring-4 ring-white/40 ring-offset-4" : ""}
@@ -295,7 +295,7 @@ export default function VoiceOnboardPage() {
             {/* Status label */}
             <div className="text-center space-y-1">
               {voiceStep === "speaking" && (
-                <p className="text-asha-teal font-semibold text-base animate-pulse">आशा बोल रही है...</p>
+                <p className="text-asha-teal font-semibold text-base animate-pulse">विकास बोल रहा है...</p>
               )}
               {voiceStep === "listening" && (
                 <p className="text-green-600 font-semibold text-base">सुन रहे हैं... बोलिए</p>

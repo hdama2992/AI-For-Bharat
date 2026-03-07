@@ -15,6 +15,7 @@ HOUSEHOLDS: Dict[str, Household] = {}
 HEALTH_SESSIONS: Dict[str, HealthSession] = {}
 WHATSAPP_SESSIONS: Dict[str, List[ChatMessage]] = {}
 WHATSAPP_MEDIA: Dict[str, dict] = {}
+WHATSAPP_STATUS_EVENTS: List[dict] = []
 
 
 def init_demo_data():
@@ -151,6 +152,23 @@ def get_whatsapp_media(media_id: str) -> Optional[dict]:
         WHATSAPP_MEDIA.pop(media_id, None)
         return None
     return payload
+
+
+def record_whatsapp_status_event(payload: dict, max_events: int = 200) -> dict:
+    """Store recent Twilio message status callbacks for inspection."""
+    event = {
+        "recorded_at": datetime.utcnow().isoformat(),
+        **payload,
+    }
+    WHATSAPP_STATUS_EVENTS.append(event)
+    if len(WHATSAPP_STATUS_EVENTS) > max_events:
+        del WHATSAPP_STATUS_EVENTS[:-max_events]
+    return event
+
+
+def get_whatsapp_status_events(limit: int = 50) -> List[dict]:
+    """Return recent Twilio status callbacks, newest first."""
+    return list(reversed(WHATSAPP_STATUS_EVENTS[-limit:]))
 
 
 # Initialize demo data on module load

@@ -1,5 +1,5 @@
 """
-VikasGPT (Asha-GPT) Backend API
+VikasGPT Backend API
 Rural AI Assistant for Health, Agriculture, and Livelihood
 
 AI for Bharat Hackathon 2026
@@ -31,7 +31,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="VikasGPT API",
     description="""
-    ## 🌿 Asha-GPT: Rural AI Assistant
+    ## 🌿 VikasGPT: Rural AI Assistant
     
     AI-powered conversational OS for rural Indian households.
     

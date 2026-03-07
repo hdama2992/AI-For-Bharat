@@ -3,13 +3,13 @@ import "./globals.css";
 import { Toaster } from "react-hot-toast";
 
 export const metadata: Metadata = {
-  title: "Asha-GPT — Rural Health & Wealth Companion",
+  title: "VikasGPT — Rural Health & Wealth Companion",
   description: "India's first voice-first conversational OS for rural health and agricultural livelihood",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Asha-GPT",
+    title: "VikasGPT",
   },
 };
 

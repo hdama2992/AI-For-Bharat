@@ -5,7 +5,7 @@ import base64
 import binascii
 
 import httpx
-from fastapi import APIRouter, Form, HTTPException, Response
+from fastapi import APIRouter, Form, HTTPException, Request, Response
 from twilio.twiml.messaging_response import MessagingResponse
 
 from app.config import get_settings
@@ -13,6 +13,8 @@ from app.db.memory import (
     append_whatsapp_message,
     get_whatsapp_media,
     get_whatsapp_session,
+    get_whatsapp_status_events,
+    record_whatsapp_status_event,
     store_whatsapp_media,
 )
 from app.models.health import ChatMessage
@@ -101,6 +103,26 @@ async def whatsapp_media(media_id: str):
     return Response(content=payload["content"], media_type=payload["content_type"])
 
 
+@router.post("/status-callback")
+async def whatsapp_status_callback(request: Request):
+    """
+    Receive Twilio message lifecycle callbacks.
+
+    Twilio posts form-encoded fields such as MessageSid, MessageStatus,
+    ErrorCode, ChannelStatusMessage, To, and From. The exact set can vary.
+    """
+    form = await request.form()
+    payload = {key: value for key, value in form.items()}
+    event = record_whatsapp_status_event(payload)
+    return {"received": True, "message_sid": event.get("MessageSid"), "status": event.get("MessageStatus")}
+
+
+@router.get("/status-callback/recent")
+async def whatsapp_status_recent(limit: int = 20):
+    """Inspect recent Twilio status callbacks during development/demo."""
+    return {"events": get_whatsapp_status_events(limit=limit)}
+
+
 @router.post("/webhook")
 async def whatsapp_webhook(
     From: str = Form(...),
@@ -132,8 +154,8 @@ async def whatsapp_webhook(
 
         if not user_text:
             intro = (
-                "Namaste, I am Asha-GPT. Send your health problem as text or voice note.\n\n"
-                "नमस्ते, मैं आशा-GPT हूं। अपनी स्वास्थ्य समस्या text या voice note में भेजें।"
+                "Namaste, I am VikasGPT. Send your health problem as text or voice note.\n\n"
+                "नमस्ते, मैं विकास-GPT हूं। अपनी स्वास्थ्य समस्या text या voice note में भेजें।"
             )
             return Response(content=_build_whatsapp_response(intro), media_type="application/xml")
 

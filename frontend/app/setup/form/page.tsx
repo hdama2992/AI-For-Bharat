@@ -259,7 +259,7 @@ export default function SetupFormPage() {
             disabled={loading}
             className="w-full bg-asha-green text-white py-4 rounded-2xl text-base font-bold disabled:opacity-60"
           >
-            {loading ? "Setting up..." : "Start Using Asha-GPT"}
+            {loading ? "Setting up..." : "Start Using VikasGPT"}
           </button>
         )}
       </div>

@@ -21,8 +21,8 @@ export default function LandingPage() {
         <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center mb-6 shadow-lg">
           <span className="text-5xl">🌿</span>
         </div>
-        <h1 className="text-4xl font-bold mb-2">Asha-GPT</h1>
-        <p className="text-asha-light text-lg font-medium mb-4">आशा-GPT</p>
+        <h1 className="text-4xl font-bold mb-2">VikasGPT</h1>
+        <p className="text-asha-light text-lg font-medium mb-4">विकास-GPT</p>
         <p className="text-white/80 text-base max-w-xs leading-relaxed">
           Your trusted AI companion for rural health & agricultural livelihood
         </p>
