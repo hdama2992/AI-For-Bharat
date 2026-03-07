@@ -25,8 +25,8 @@ class Settings(BaseSettings):
     aws_bearer_token_bedrock: Optional[str] = None
     
     # Bedrock (auth via AWS_BEARER_TOKEN_BEDROCK env var)
-    bedrock_model_id: str = "anthropic.claude-3-sonnet-20240229-v1:0"
-    bedrock_haiku_model_id: str = "apac.anthropic.claude-3-haiku-20240307-v1:0"
+    bedrock_model_id: str = "global.anthropic.claude-opus-4-6-v1"
+    bedrock_haiku_model_id: str = "global.anthropic.claude-opus-4-6-v1"
     
     # Bhashini API
     bhashini_user_id: Optional[str] = None
