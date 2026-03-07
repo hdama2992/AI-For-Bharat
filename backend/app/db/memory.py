@@ -2,17 +2,19 @@
 In-memory database for prototype
 Replace with DynamoDB for production
 """
-from typing import Dict, Optional
-from datetime import datetime
+from typing import Dict, List, Optional
+from datetime import datetime, timedelta
 import uuid
 
 from app.models.household import Household, FamilyMember
-from app.models.health import HealthSession
+from app.models.health import ChatMessage, HealthSession
 
 
 # In-memory stores
 HOUSEHOLDS: Dict[str, Household] = {}
 HEALTH_SESSIONS: Dict[str, HealthSession] = {}
+WHATSAPP_SESSIONS: Dict[str, List[ChatMessage]] = {}
+WHATSAPP_MEDIA: Dict[str, dict] = {}
 
 
 def init_demo_data():
@@ -102,6 +104,54 @@ def update_health_session(session: HealthSession) -> HealthSession:
     return session
 
 
+def get_whatsapp_session(from_number: str) -> List[ChatMessage]:
+    """Get recent WhatsApp conversation history for a sender."""
+    return WHATSAPP_SESSIONS.get(from_number, [])
+
+
+def append_whatsapp_message(from_number: str, message: ChatMessage, max_messages: int = 10) -> List[ChatMessage]:
+    """Append a WhatsApp message and cap retained history."""
+    history = WHATSAPP_SESSIONS.get(from_number, [])
+    history.append(message)
+    WHATSAPP_SESSIONS[from_number] = history[-max_messages:]
+    return WHATSAPP_SESSIONS[from_number]
+
+
+def clear_expired_whatsapp_media() -> None:
+    """Drop expired temporary audio payloads."""
+    now = datetime.utcnow()
+    expired_ids = [
+        media_id
+        for media_id, payload in WHATSAPP_MEDIA.items()
+        if payload["expires_at"] <= now
+    ]
+    for media_id in expired_ids:
+        WHATSAPP_MEDIA.pop(media_id, None)
+
+
+def store_whatsapp_media(content: bytes, content_type: str, ttl_seconds: int = 900) -> str:
+    """Store temporary WhatsApp media and return its identifier."""
+    clear_expired_whatsapp_media()
+    media_id = str(uuid.uuid4())
+    WHATSAPP_MEDIA[media_id] = {
+        "content": content,
+        "content_type": content_type,
+        "expires_at": datetime.utcnow() + timedelta(seconds=ttl_seconds),
+    }
+    return media_id
+
+
+def get_whatsapp_media(media_id: str) -> Optional[dict]:
+    """Return temporary media if still present."""
+    clear_expired_whatsapp_media()
+    payload = WHATSAPP_MEDIA.get(media_id)
+    if not payload:
+        return None
+    if payload["expires_at"] <= datetime.utcnow():
+        WHATSAPP_MEDIA.pop(media_id, None)
+        return None
+    return payload
+
+
 # Initialize demo data on module load
 init_demo_data()
-

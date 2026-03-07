@@ -1,34 +1,36 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getMandi, getCrops } from "@/lib/api";
+import { MandiCompareResponse, MandiPrice, getCrops, getDistricts, getMandi } from "@/lib/api";
 import toast from "react-hot-toast";
-
-const DISTRICTS: Record<string, string[]> = {
-  "Madhya Pradesh": ["Harda", "Bhopal", "Indore", "Jabalpur", "Hoshangabad"],
-  "Rajasthan": ["Jaipur", "Jodhpur", "Udaipur", "Sikar"],
-  "Uttar Pradesh": ["Lucknow", "Kanpur", "Varanasi", "Barabanki"],
-  "Maharashtra": ["Nagpur", "Pune", "Amravati"],
-  "Telangana": ["Warangal", "Karimnagar"],
-  "Bihar": ["Patna", "Gaya"],
-};
-
-const ALL_DISTRICTS = Object.values(DISTRICTS).flat();
 
 export default function MandiPage() {
   const router = useRouter();
   const [crop, setCrop] = useState("Soybean");
   const [district, setDistrict] = useState("Harda");
   const [crops, setCrops] = useState<string[]>([]);
-  const [result, setResult] = useState<any>(null);
+  const [districts, setDistricts] = useState<string[]>([]);
+  const [result, setResult] = useState<MandiCompareResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [householdId, setHouseholdId] = useState<string | null>(null);
 
   useEffect(() => {
     const id = localStorage.getItem("household_id");
     setHouseholdId(id);
-    getCrops().then(d => setCrops(d.crops)).catch(() => {});
+
+    getCrops()
+      .then((data) => setCrops(data.crops))
+      .catch(() => {});
+
+    getDistricts()
+      .then((data) => setDistricts(data.districts))
+      .catch(() => {});
   }, []);
+
+  const allMandis = useMemo<MandiPrice[]>(() => {
+    if (!result) return [];
+    return [result.home_mandi, ...result.alternatives];
+  }, [result]);
 
   const handleCompare = async () => {
     setLoading(true);
@@ -36,19 +38,16 @@ export default function MandiPage() {
     try {
       const data = await getMandi(crop, district, householdId || undefined);
       setResult(data);
-    } catch (e: any) {
-      toast.error(e.message || "Failed to fetch Mandi prices");
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to fetch Mandi prices";
+      toast.error(message);
     } finally {
       setLoading(false);
     }
   };
 
-  const bestMandi = result?.all_mandis?.reduce((best: any, m: any) =>
-    m.net_price > (best?.net_price || 0) ? m : best, null);
-
   return (
     <div className="min-h-screen bg-gray-100 pb-8">
-      {/* Header */}
       <div className="bg-asha-teal text-white px-4 pt-12 pb-5">
         <div className="flex items-center gap-3 mb-3">
           <button onClick={() => router.back()} className="text-white text-xl">←</button>
@@ -60,17 +59,16 @@ export default function MandiPage() {
       </div>
 
       <div className="px-4 py-4 space-y-4">
-        {/* Inputs */}
         <div className="bg-white rounded-2xl p-4 border border-gray-200 space-y-3">
           <div>
             <label className="block text-sm font-medium text-gray-600 mb-1">Crop / फसल</label>
             <select
               value={crop}
-              onChange={e => setCrop(e.target.value)}
+              onChange={(e) => setCrop(e.target.value)}
               className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-asha-green"
             >
-              {(crops.length ? crops : ["Soybean","Wheat","Mustard","Cotton","Maize","Gram"]).map(c => (
-                <option key={c}>{c}</option>
+              {(crops.length ? crops : ["Soybean", "Wheat", "Mustard", "Cotton", "Maize", "Gram"]).map((item) => (
+                <option key={item}>{item}</option>
               ))}
             </select>
           </div>
@@ -78,10 +76,12 @@ export default function MandiPage() {
             <label className="block text-sm font-medium text-gray-600 mb-1">District / जिला</label>
             <select
               value={district}
-              onChange={e => setDistrict(e.target.value)}
+              onChange={(e) => setDistrict(e.target.value)}
               className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-asha-green"
             >
-              {ALL_DISTRICTS.map(d => <option key={d}>{d}</option>)}
+              {(districts.length ? districts : ["Harda", "Bhopal", "Indore"]).map((item) => (
+                <option key={item}>{item}</option>
+              ))}
             </select>
           </div>
           <button
@@ -93,7 +93,6 @@ export default function MandiPage() {
           </button>
         </div>
 
-        {/* Loading */}
         {loading && (
           <div className="text-center py-8">
             <div className="text-4xl mb-2 animate-bounce">🌾</div>
@@ -102,58 +101,57 @@ export default function MandiPage() {
           </div>
         )}
 
-        {/* Results */}
         {result && !loading && (
           <>
-            {/* Savings callout */}
-            <div className={`rounded-2xl p-4 ${result.best_net_gain > 0 ? "bg-green-50 border border-green-200" : "bg-blue-50 border border-blue-200"}`}>
-              <p className={`font-bold text-base ${result.best_net_gain > 0 ? "text-green-700" : "text-blue-700"}`}>
-                {result.best_net_gain > 0 ? "💡 Better Price Available!" : "✅ Local Mandi is Best"}
+            <div className={`rounded-2xl p-4 ${result.potential_savings > 0 ? "bg-green-50 border border-green-200" : "bg-blue-50 border border-blue-200"}`}>
+              <p className={`font-bold text-base ${result.potential_savings > 0 ? "text-green-700" : "text-blue-700"}`}>
+                {result.potential_savings > 0 ? "💡 Better Price Available!" : "✅ Local Mandi is Best"}
               </p>
-              <p className={`text-sm mt-1 ${result.best_net_gain > 0 ? "text-green-600" : "text-blue-600"}`}>
-                {result.savings_message_en}
+              <p className={`text-sm mt-1 ${result.potential_savings > 0 ? "text-green-600" : "text-blue-600"}`}>
+                {result.recommendation}
               </p>
-              <p className={`text-xs mt-1 ${result.best_net_gain > 0 ? "text-green-500" : "text-blue-500"}`}>
-                {result.savings_message_hi}
+              <p className={`text-xs mt-1 ${result.potential_savings > 0 ? "text-green-500" : "text-blue-500"}`}>
+                {result.recommendation_hi}
               </p>
-              {result.msp && (
-                <p className="text-xs text-gray-400 mt-2">MSP 2025-26: ₹{result.msp}/qtl</p>
-              )}
+              <p className="text-xs text-gray-400 mt-2">MSP 2025-26: ₹{result.msp_price}/qtl</p>
             </div>
 
-            {/* Mandi table */}
             <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
               <div className="px-4 py-3 border-b border-gray-100">
-                <p className="font-semibold text-gray-700">{result.crop} Prices — {result.district}</p>
-                <p className="text-xs text-gray-400">Updated: {result.last_updated}</p>
+                <p className="font-semibold text-gray-700">{result.crop} Prices</p>
+                <p className="text-xs text-gray-400">Best market: {result.best_mandi}</p>
               </div>
               <div className="divide-y divide-gray-100">
-                {result.all_mandis?.map((mandi: any, i: number) => {
-                  const isBest = mandi.mandi_name === result.best_mandi && result.best_net_gain > 0;
+                {allMandis.map((mandi, index) => {
+                  const isBest = mandi.mandi_name === result.best_mandi && result.potential_savings > 0;
+                  const isHome = mandi.distance_km === 0;
+                  const netPrice = Math.round(mandi.modal_price - mandi.transport_cost);
                   return (
-                    <div key={i} className={`px-4 py-3 ${isBest ? "bg-green-50" : ""}`}>
-                      <div className="flex items-start justify-between">
+                    <div key={`${mandi.mandi_name}-${index}`} className={`px-4 py-3 ${isBest ? "bg-green-50" : ""}`}>
+                      <div className="flex items-start justify-between gap-3">
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
                             <p className="font-medium text-gray-800 text-sm">{mandi.mandi_name}</p>
+                            {isHome && (
+                              <span className="bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full font-medium">Local</span>
+                            )}
                             {isBest && (
                               <span className="bg-green-500 text-white text-xs px-2 py-0.5 rounded-full font-medium">Best</span>
                             )}
                           </div>
                           <p className="text-xs text-gray-500 mt-0.5">
-                            {mandi.distance_km === 0 ? "Your local Mandi" : `${mandi.distance_km} km away`}
-                            {mandi.transport_cost_per_quintal > 0 && ` • ₹${mandi.transport_cost_per_quintal}/qtl transport`}
+                            {isHome ? "Your local Mandi" : `${mandi.distance_km} km away`}
+                            {!isHome && ` • ₹${mandi.transport_cost}/qtl transport`}
                           </p>
                           <p className="text-xs text-gray-400">
-                            Trend: {mandi.trend_7d} (7 days)
-                            {mandi.arrivals_tonnes && ` • ${mandi.arrivals_tonnes}t arrivals`}
+                            {mandi.district}, {mandi.state}
                           </p>
                         </div>
-                        <div className="text-right ml-3">
+                        <div className="text-right">
                           <p className="font-bold text-gray-800">₹{mandi.modal_price}</p>
-                          <p className="text-xs text-gray-500">₹{mandi.net_price} net</p>
-                          {mandi.net_gain_vs_local > 0 && (
-                            <p className="text-xs text-green-600 font-medium">+₹{mandi.net_gain_vs_local}</p>
+                          <p className="text-xs text-gray-500">₹{netPrice} net</p>
+                          {mandi.net_gain > 0 && (
+                            <p className="text-xs text-green-600 font-medium">+₹{Math.round(mandi.net_gain)}/qtl</p>
                           )}
                         </div>
                       </div>
@@ -164,7 +162,7 @@ export default function MandiPage() {
             </div>
 
             <p className="text-xs text-gray-400 text-center px-4">
-              Prices simulated from Agmarknet patterns. Connect eNAM API for live data.
+              Prices use prototype mock data. For the demo, the recommendation already accounts for transport cost.
             </p>
           </>
         )}

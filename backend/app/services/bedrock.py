@@ -31,6 +31,10 @@ class BedrockService:
         except Exception as e:
             print(f"Warning: Could not initialize Bedrock client: {e}")
             self.runtime_client = None
+
+    def is_configured(self) -> bool:
+        """Whether Bedrock is ready for live calls."""
+        return self.runtime_client is not None
     
     def invoke(
         self,
@@ -126,4 +130,3 @@ class BedrockService:
 
 # Singleton instance
 bedrock_service = BedrockService()
-

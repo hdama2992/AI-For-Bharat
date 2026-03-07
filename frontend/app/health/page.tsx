@@ -2,6 +2,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
+import { TriageResult } from "@/lib/api";
 
 const BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 
@@ -9,16 +10,6 @@ interface Message {
   role: "user" | "assistant";
   content: string;
   isStreaming?: boolean;
-}
-
-interface TriageResult {
-  triage_level: "GREEN" | "YELLOW" | "RED";
-  confidence_pct: number;
-  assessment_summary: string;
-  immediate_actions: string[];
-  follow_up?: string;
-  emergency_number?: string;
-  disclaimer: string;
 }
 
 const TRIAGE_CONFIG = {
@@ -74,6 +65,9 @@ export default function HealthPage() {
   const [isListening, setIsListening] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
+  const whatsappNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "+14155238886";
+  const whatsappDigits = whatsappNumber.replace(/\D/g, "");
+  const whatsappUrl = whatsappDigits ? `https://wa.me/${whatsappDigits}?text=${encodeURIComponent("Namaste Asha")}` : null;
 
   useEffect(() => {
     const id = localStorage.getItem("household_id");
@@ -330,6 +324,16 @@ export default function HealthPage() {
 
       {/* Input bar */}
       <div className="bg-asha-chat px-3 py-2.5 flex-shrink-0 border-t border-gray-200">
+        {whatsappUrl && (
+          <a
+            href={whatsappUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="mb-2 flex items-center justify-center rounded-xl border border-green-200 bg-green-50 px-3 py-2 text-xs font-medium text-green-700"
+          >
+            Need to continue on WhatsApp? Open Asha WhatsApp
+          </a>
+        )}
         <div className="flex items-end gap-2">
           {/* Voice button */}
           <button

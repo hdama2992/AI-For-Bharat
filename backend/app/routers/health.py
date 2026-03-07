@@ -4,12 +4,12 @@ Health Triage Router
 - SSE (Server-Sent Events) for real-time responses
 """
 import json
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from typing import Generator
 
 from app.models.health import HealthChatRequest, ChatMessage
-from app.services.agents.sehat import sehat_agent
+from app.services.health_advisor import health_advisor
 from app.db.memory import get_household
 
 router = APIRouter(prefix="/health", tags=["Health"])
@@ -22,48 +22,54 @@ def generate_sse_stream(
     language: str,
 ) -> Generator[str, None, None]:
     """Generate SSE stream for health chat"""
-    
-    # Convert history to ChatMessage objects
     history = [
         ChatMessage(role=msg.get("role", "user"), content=msg.get("content", ""))
         for msg in conversation_history
         if msg.get("content")
     ]
-    
-    # Accumulate full response to extract triage
-    full_response = ""
-    
-    # Stream response chunks
-    for chunk in sehat_agent.chat_stream(
+
+    reply = yield from _stream_health_reply(
         user_message=user_message,
         conversation_history=history,
         household_context=household_context,
         language=language,
-    ):
-        full_response += chunk
-        # Send chunk as SSE data event
-        yield f"data: {chunk}\n\n"
-    
-    # Check if triage was generated
-    triage = sehat_agent.extract_triage(full_response)
-    
-    if triage:
-        # Send triage as special event
+    )
+
+    if reply.triage:
         triage_data = {
             "triage": {
-                "triage_level": triage.triage_level.value,
-                "confidence_pct": triage.confidence_pct,
-                "assessment_summary": triage.assessment_summary,
-                "immediate_actions": triage.immediate_actions,
-                "follow_up": triage.follow_up,
-                "emergency_number": triage.emergency_number,
-                "disclaimer": triage.disclaimer,
+                "triage_level": reply.triage.triage_level.value,
+                "confidence_pct": reply.triage.confidence_pct,
+                "assessment_summary": reply.triage.assessment_summary,
+                "immediate_actions": reply.triage.immediate_actions,
+                "follow_up": reply.triage.follow_up,
+                "emergency_number": reply.triage.emergency_number,
+                "disclaimer": reply.triage.disclaimer,
             }
         }
         yield f"event: triage\ndata: {json.dumps(triage_data)}\n\n"
-    
-    # Signal end of stream
+
     yield "data: [DONE]\n\n"
+
+
+def _stream_health_reply(
+    user_message: str,
+    conversation_history: list[ChatMessage],
+    household_context: dict,
+    language: str,
+):
+    generator = health_advisor.stream_reply(
+        user_message=user_message,
+        conversation_history=conversation_history,
+        household_context=household_context,
+        language=language,
+    )
+    try:
+        while True:
+            chunk = next(generator)
+            yield f"data: {chunk}\n\n"
+    except StopIteration as stop:
+        return stop.value
 
 
 @router.post("/chat")
@@ -117,4 +123,3 @@ async def health_chat(request: HealthChatRequest):
             "X-Accel-Buffering": "no",  # Disable nginx buffering
         },
     )
-

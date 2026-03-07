@@ -4,20 +4,16 @@ Household API Router
 - AI extraction from voice onboarding
 - Context insights
 """
-import json
 from fastapi import APIRouter, HTTPException
-from typing import List
 
 from app.models.household import (
     HouseholdCreate,
     HouseholdResponse,
     OnboardExtractRequest,
     OnboardExtractResponse,
-    ContextInsight,
 )
-from app.db.memory import create_household, get_household, HOUSEHOLDS
-from app.services.bedrock import bedrock_service
-from app.services.agents.prompts import ONBOARD_EXTRACTION_PROMPT
+from app.db.memory import create_household, get_household
+from app.services.onboarding import onboarding_service
 
 router = APIRouter(prefix="/household", tags=["Household"])
 
@@ -41,51 +37,12 @@ async def get_household_endpoint(household_id: str):
 @router.post("/onboard-extract", response_model=OnboardExtractResponse)
 async def extract_onboarding_data(request: OnboardExtractRequest):
     """Extract structured household data from voice conversation turns using AI"""
-    
-    # Format turns for Claude
-    turns_text = "\n".join([
-        f"Q: {turn.question}\nA: {turn.answer}"
-        for turn in request.turns
-    ])
-    
-    prefill_text = ""
-    if request.prefill:
-        prefill_text = f"\n\nPre-filled data from PM-KISAN: {json.dumps(request.prefill)}"
-    
-    prompt = f"""Extract household information from this onboarding conversation:
-
-{turns_text}
-{prefill_text}
-
-Return ONLY the JSON response, no other text."""
-
-    # Use Haiku for faster extraction
-    messages = [{"role": "user", "content": prompt}]
-    response = bedrock_service.invoke_haiku(messages, system_prompt=ONBOARD_EXTRACTION_PROMPT)
-    
-    # Parse response
-    try:
-        # Find JSON in response
-        json_match = response.strip()
-        if json_match.startswith("```"):
-            json_match = json_match.split("```")[1]
-            if json_match.startswith("json"):
-                json_match = json_match[4:]
-        
-        data = json.loads(json_match)
-        
-        return OnboardExtractResponse(
-            household=data.get("household", {}),
-            confidence=data.get("confidence", 0.7),
-            missing_fields=data.get("missing_fields", []),
-        )
-    except json.JSONDecodeError:
-        # Return partial data if parsing fails
-        return OnboardExtractResponse(
-            household=request.prefill or {},
-            confidence=0.3,
-            missing_fields=["name", "state", "district"],
-        )
+    data = onboarding_service.extract(request.turns, request.prefill)
+    return OnboardExtractResponse(
+        household=data.get("household", {}),
+        confidence=data.get("confidence", 0.7),
+        missing_fields=data.get("missing_fields", []),
+    )
 
 
 @router.get("/context/{household_id}")
@@ -153,4 +110,3 @@ async def get_context_insights(household_id: str):
     })
 
     return insights
-

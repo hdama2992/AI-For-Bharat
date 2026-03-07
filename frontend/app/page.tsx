@@ -5,6 +5,9 @@ import Link from "next/link";
 
 export default function LandingPage() {
   const router = useRouter();
+  const whatsappNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "+14155238886";
+  const whatsappDigits = whatsappNumber.replace(/\D/g, "");
+  const whatsappUrl = whatsappDigits ? `https://wa.me/${whatsappDigits}` : null;
 
   useEffect(() => {
     const id = localStorage.getItem("household_id");
@@ -33,8 +36,8 @@ export default function LandingPage() {
         <div className="flex gap-2 justify-center flex-wrap mb-8">
           {[
             { icon: "🌾", label: "Mandi Prices" },
-            { icon: "🔍", label: "Pest-Vision" },
             { icon: "❤️", label: "Health Triage" },
+            { icon: "💬", label: "WhatsApp Health" },
           ].map((f) => (
             <span
               key={f.label}
@@ -55,6 +58,17 @@ export default function LandingPage() {
         <p className="text-white/50 text-xs text-center mt-4">
           No app download needed • Zero cost • Works on 2G
         </p>
+
+        {whatsappUrl && (
+          <a
+            href={whatsappUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-4 block w-full border border-white/30 text-white text-center py-3 rounded-2xl text-sm font-semibold"
+          >
+            Open WhatsApp Health Demo
+          </a>
+        )}
       </div>
 
       {/* Demo shortcut */}

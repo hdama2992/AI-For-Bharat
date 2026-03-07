@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     app_name: str = "VikasGPT"
     debug: bool = True
     api_version: str = "v1"
+    public_base_url: str = "http://localhost:8000"
     
     # CORS
     cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
@@ -50,4 +51,3 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
     """Get cached settings instance"""
     return Settings()
-

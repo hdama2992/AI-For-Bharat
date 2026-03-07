@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import HouseholdContextBanner from "@/components/ui/HouseholdContextBanner";
-import { getHousehold } from "@/lib/api";
+import { Household, getHousehold } from "@/lib/api";
 
 const MODULES = [
   {
@@ -18,19 +18,6 @@ const MODULES = [
     bg: "bg-green-50",
     border: "border-green-200",
     iconBg: "bg-green-100",
-  },
-  {
-    href: "/pest",
-    icon: "🔬",
-    title: "Pest-Vision",
-    titleHi: "कीट-दृष्टि",
-    desc: "Identify crop diseases from a photo — safe treatment advice",
-    descHi: "फोटो से फसल की बीमारी पहचानें, सुरक्षित उपचार पाएं",
-    cta: "Analyze Crop",
-    ctaHi: "फसल जांचें",
-    bg: "bg-yellow-50",
-    border: "border-yellow-200",
-    iconBg: "bg-yellow-100",
   },
   {
     href: "/health",
@@ -50,17 +37,29 @@ const MODULES = [
 export default function DashboardPage() {
   const router = useRouter();
   const [householdId, setHouseholdId] = useState<string | null>(null);
-  const [household, setHousehold] = useState<any>(null);
+  const [household, setHousehold] = useState<Household | null>(null);
   const [lang, setLang] = useState<"en" | "hi">("en");
+  const [loading, setLoading] = useState(true);
+  const whatsappNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "+14155238886";
+  const whatsappJoinText = process.env.NEXT_PUBLIC_WHATSAPP_JOIN_TEXT || "";
+  const whatsappDigits = whatsappNumber.replace(/\D/g, "");
+  const whatsappPrompt = encodeURIComponent(whatsappJoinText || "Namaste Asha");
+  const whatsappUrl = whatsappDigits ? `https://wa.me/${whatsappDigits}?text=${whatsappPrompt}` : null;
 
   useEffect(() => {
     const id = localStorage.getItem("household_id");
     if (!id) { router.replace("/"); return; }
     setHouseholdId(id);
-    getHousehold(id).then(setHousehold).catch(() => {});
+    getHousehold(id)
+      .then(setHousehold)
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, [router]);
 
   if (!householdId) return null;
+  if (loading) {
+    return <div className="min-h-screen bg-gray-100 flex items-center justify-center text-gray-500">Loading profile...</div>;
+  }
 
   const name = household?.name || localStorage.getItem("household_name") || "Farmer";
   const crop = household?.crop_primary || "Crop";
@@ -121,6 +120,37 @@ export default function DashboardPage() {
           </Link>
         ))}
       </div>
+
+      {whatsappUrl && (
+        <div className="px-4 mt-4">
+          <div className="bg-white rounded-2xl p-4 border border-green-200 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-green-700">WhatsApp Demo</p>
+            <h2 className="text-base font-bold text-gray-800 mt-1">
+              {lang === "en" ? "Use Asha on WhatsApp" : "WhatsApp पर आशा से बात करें"}
+            </h2>
+            <p className="text-sm text-gray-600 mt-1">
+              {lang === "en"
+                ? "Send a voice note about a health issue. Asha will reply with triage guidance."
+                : "स्वास्थ्य समस्या का voice note भेजें। आशा triage guidance के साथ जवाब देगी।"}
+            </p>
+            {whatsappJoinText && (
+              <p className="text-xs text-gray-500 mt-2">
+                {lang === "en"
+                  ? `First message for Twilio sandbox: "${whatsappJoinText}"`
+                  : `Twilio sandbox के लिए पहला संदेश: "${whatsappJoinText}"`}
+              </p>
+            )}
+            <a
+              href={whatsappUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-3 inline-flex items-center justify-center rounded-xl bg-green-600 px-4 py-3 text-sm font-semibold text-white"
+            >
+              {lang === "en" ? "Open WhatsApp" : "WhatsApp खोलें"}
+            </a>
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       <div className="mt-6 px-4">

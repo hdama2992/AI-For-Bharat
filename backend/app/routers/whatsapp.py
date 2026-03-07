@@ -1,81 +1,104 @@
 """
-WhatsApp Voice-First Webhook Router
-Handles incoming voice notes from Twilio WhatsApp
-
-Flow:
-1. Receive voice note from Twilio
-2. Download audio and convert via Bhashini STT
-3. Process with Sehat/Krishi agent
-4. Generate voice response via Bhashini TTS
-5. Send voice note back via Twilio
+WhatsApp webhook and temporary media hosting for the prototype.
 """
 import base64
+import binascii
+
 import httpx
-from fastapi import APIRouter, Form, Response
-from twilio.rest import Client as TwilioClient
+from fastapi import APIRouter, Form, HTTPException, Response
 from twilio.twiml.messaging_response import MessagingResponse
 
 from app.config import get_settings
-from app.services.bhashini import bhashini_service
-from app.services.agents.sehat import sehat_agent
+from app.db.memory import (
+    append_whatsapp_message,
+    get_whatsapp_media,
+    get_whatsapp_session,
+    store_whatsapp_media,
+)
 from app.models.health import ChatMessage
+from app.services.bhashini import bhashini_service
+from app.services.health_advisor import health_advisor
 
 router = APIRouter(prefix="/whatsapp", tags=["WhatsApp"])
 settings = get_settings()
 
 
-def get_twilio_client():
-    """Get Twilio client (lazy init)"""
-    if settings.twilio_account_sid and settings.twilio_auth_token:
-        return TwilioClient(settings.twilio_account_sid, settings.twilio_auth_token)
-    return None
-
-
 async def download_audio(media_url: str) -> bytes:
-    """Download audio file from Twilio URL"""
-    async with httpx.AsyncClient() as client:
-        # Twilio requires auth to download media
+    """Download incoming WhatsApp audio from Twilio media storage."""
+    if not settings.twilio_account_sid or not settings.twilio_auth_token:
+        raise RuntimeError("Twilio credentials are required to download voice notes.")
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
         response = await client.get(
             media_url,
             auth=(settings.twilio_account_sid, settings.twilio_auth_token),
         )
+        response.raise_for_status()
         return response.content
 
 
-async def process_voice_message(audio_bytes: bytes, from_number: str) -> str:
-    """Process a voice message and return response audio URL"""
-    
-    # 1. Convert audio to base64 for Bhashini
-    audio_b64 = base64.standard_b64encode(audio_bytes).decode("utf-8")
-    
-    # 2. Speech-to-Text via Bhashini (detect Hindi)
-    transcribed_text = await bhashini_service.speech_to_text(
-        audio_base64=audio_b64,
-        source_lang="hi",  # Assume Hindi for rural users
+def _build_media_url(media_id: str) -> str:
+    base = settings.public_base_url.rstrip("/")
+    return f"{base}/api/v1/whatsapp/media/{media_id}"
+
+
+def _voice_retry_message() -> str:
+    return (
+        "I could not understand that voice note clearly. Please send a shorter voice note or type your health problem.\n\n"
+        "मैं उस वॉइस नोट को साफ़ समझ नहीं पाया। कृपया छोटा voice note भेजें या अपनी तकलीफ़ टाइप करें।"
     )
-    
-    if not transcribed_text:
-        return "माफ कीजिए, मैं आपकी आवाज़ समझ नहीं पाया। कृपया दोबारा बोलें।"
-    
-    # 3. Process with Sehat Agent (health triage)
-    # For prototype, route everything to health agent
-    full_response = ""
-    for chunk in sehat_agent.chat_stream(
-        user_message=transcribed_text,
-        conversation_history=[],
-        household_context=None,
-        language="hi",
-    ):
-        full_response += chunk
-    
-    # 4. Extract just the text response (strip triage JSON)
-    response_text = full_response.split("<TRIAGE>")[0].strip()
-    
-    # Keep response concise for voice
-    if len(response_text) > 500:
-        response_text = response_text[:500] + "..."
-    
-    return response_text
+
+
+async def _transcribe_audio(audio_bytes: bytes) -> str:
+    audio_b64 = base64.standard_b64encode(audio_bytes).decode("utf-8")
+    transcript = await bhashini_service.speech_to_text(
+        audio_base64=audio_b64,
+        source_lang="hi",
+    )
+    if not transcript or transcript.startswith("["):
+        return ""
+    return transcript.strip()
+
+
+async def _create_voice_reply_url(text: str) -> str | None:
+    audio_b64 = await bhashini_service.text_to_speech(
+        text=text,
+        target_lang="hi",
+        gender="female",
+    )
+    if not audio_b64:
+        return None
+
+    try:
+        audio_bytes = base64.b64decode(audio_b64)
+    except (binascii.Error, ValueError):
+        return None
+
+    media_id = store_whatsapp_media(audio_bytes, "audio/wav")
+    return _build_media_url(media_id)
+
+
+def _build_whatsapp_response(reply_text: str, media_url: str | None = None) -> str:
+    response = MessagingResponse()
+    if media_url:
+        message = response.message(reply_text[:700])
+        message.media(media_url)
+    else:
+        response.message(reply_text[:1200])
+    return str(response)
+
+
+def _store_turn(from_number: str, role: str, content: str) -> None:
+    append_whatsapp_message(from_number, ChatMessage(role=role, content=content))
+
+
+@router.get("/media/{media_id}")
+async def whatsapp_media(media_id: str):
+    """Serve temporary audio replies for Twilio media delivery."""
+    payload = get_whatsapp_media(media_id)
+    if not payload:
+        raise HTTPException(status_code=404, detail="Media not found or expired")
+    return Response(content=payload["content"], media_type=payload["content_type"])
 
 
 @router.post("/webhook")
@@ -83,71 +106,63 @@ async def whatsapp_webhook(
     From: str = Form(...),
     Body: str = Form(default=""),
     NumMedia: int = Form(default=0),
-    MediaUrl0: str = Form(default=None),
-    MediaContentType0: str = Form(default=None),
+    MediaUrl0: str = Form(default=""),
+    MediaContentType0: str = Form(default=""),
 ):
     """
-    Twilio WhatsApp webhook endpoint
-    
-    Handles:
-    - Voice notes (audio/ogg, audio/mpeg)
-    - Text messages (fallback)
-    """
-    response = MessagingResponse()
-    
-    try:
-        # Check if this is a voice note
-        if NumMedia > 0 and MediaContentType0 and "audio" in MediaContentType0:
-            # Download the audio
-            audio_bytes = await download_audio(MediaUrl0)
-            
-            # Process voice message
-            response_text = await process_voice_message(audio_bytes, From)
-            
-            # Generate TTS response
-            tts_audio_b64 = await bhashini_service.text_to_speech(
-                text=response_text,
-                target_lang="hi",
-                gender="female",
-            )
-            
-            if tts_audio_b64:
-                # For now, send text response (TTS requires hosting audio)
-                # TODO: Host audio and send media message
-                msg = response.message(response_text)
-            else:
-                msg = response.message(response_text)
-        
-        elif Body:
-            # Text message fallback
-            # Process as text, respond with text
-            full_response = ""
-            for chunk in sehat_agent.chat_stream(
-                user_message=Body,
-                conversation_history=[],
-                household_context=None,
-                language="hi",
-            ):
-                full_response += chunk
-            
-            response_text = full_response.split("<TRIAGE>")[0].strip()
-            if len(response_text) > 1000:
-                response_text = response_text[:1000] + "..."
-            
-            response.message(response_text)
-        
-        else:
-            response.message(
-                "🙏 नमस्ते! मैं आशा-GPT हूं। कृपया अपना सवाल voice message में भेजें।\n"
-                "Hello! I'm Asha-GPT. Please send your question as a voice message."
-            )
-    
-    except Exception as e:
-        print(f"WhatsApp webhook error: {e}")
-        response.message(
-            "माफ कीजिए, कुछ गड़बड़ हो गई। कृपया दोबारा कोशिश करें।\n"
-            "Sorry, something went wrong. Please try again."
-        )
-    
-    return Response(content=str(response), media_type="application/xml")
+    Twilio WhatsApp webhook endpoint.
 
+    Supports:
+    - Text messages
+    - Voice notes with STT attempt, TTS/media reply attempt, and text fallback
+    """
+    try:
+        user_text = Body.strip()
+        received_voice = False
+
+        if NumMedia > 0 and MediaContentType0.startswith("audio/") and MediaUrl0:
+            received_voice = True
+            audio_bytes = await download_audio(MediaUrl0)
+            user_text = await _transcribe_audio(audio_bytes)
+            if not user_text:
+                return Response(
+                    content=_build_whatsapp_response(_voice_retry_message()),
+                    media_type="application/xml",
+                )
+
+        if not user_text:
+            intro = (
+                "Namaste, I am Asha-GPT. Send your health problem as text or voice note.\n\n"
+                "नमस्ते, मैं आशा-GPT हूं। अपनी स्वास्थ्य समस्या text या voice note में भेजें।"
+            )
+            return Response(content=_build_whatsapp_response(intro), media_type="application/xml")
+
+        history = get_whatsapp_session(From)
+        _store_turn(From, "user", user_text)
+
+        reply = health_advisor.generate_reply(
+            user_message=user_text,
+            conversation_history=history,
+            household_context=None,
+            language="hi",
+        )
+        _store_turn(From, "assistant", reply.display_text)
+
+        media_url = None
+        if received_voice:
+            media_url = await _create_voice_reply_url(reply.display_text)
+
+        return Response(
+            content=_build_whatsapp_response(reply.display_text, media_url=media_url),
+            media_type="application/xml",
+        )
+    except Exception as exc:
+        print(f"WhatsApp webhook error: {exc}")
+        fallback = (
+            "Sorry, something went wrong. Please try again in a moment or send your message as text.\n\n"
+            "माफ़ कीजिए, कुछ गड़बड़ हो गई। कृपया थोड़ी देर बाद फिर कोशिश करें या अपना सवाल text में भेजें।"
+        )
+        return Response(
+            content=_build_whatsapp_response(fallback),
+            media_type="application/xml",
+        )
