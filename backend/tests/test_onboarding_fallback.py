@@ -1,8 +1,10 @@
 from app.models.household import OnboardTurn
+from app.services.bedrock import bedrock_service
 from app.services.onboarding import onboarding_service
 
 
-def test_onboarding_fallback_uses_prefill_and_family_answer():
+def test_onboarding_fallback_uses_prefill_and_family_answer(monkeypatch):
+    monkeypatch.setattr(bedrock_service, "is_configured", lambda: False)
     turns = [
         OnboardTurn(question="PM-KISAN record says your name is Ramesh Yadav — is this correct?", answer="yes"),
         OnboardTurn(question="Are you in Harda, Madhya Pradesh?", answer="yes"),

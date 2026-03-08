@@ -8,4 +8,5 @@ def test_mandi_compare_returns_recommendation():
 
     assert result["crop"] == "Soybean"
     assert result["district"] == "Harda"
-    assert result["savings_message_en"]
+    assert result["recommendation"]
+    assert "home_mandi" in result

@@ -8,9 +8,10 @@ from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from typing import Generator
 
+from app.db.repository import repository
+from app.models.chat import AgentSession, AgentType, RoutingDecision, SessionSummary
 from app.models.health import HealthChatRequest, ChatMessage
 from app.services.health_advisor import health_advisor
-from app.db.memory import get_household
 
 router = APIRouter(prefix="/health", tags=["Health"])
 
@@ -20,6 +21,8 @@ def generate_sse_stream(
     conversation_history: list,
     household_context: dict,
     language: str,
+    session_id: str,
+    household_id: str,
 ) -> Generator[str, None, None]:
     """Generate SSE stream for health chat"""
     history = [
@@ -35,18 +38,47 @@ def generate_sse_stream(
         language=language,
     )
 
+    structured_payload = {
+        "agent": "health",
+        "model": "fallback-health",
+        "source": reply.source,
+        "handoff_reason": "Health module invoked directly.",
+        "session_id": session_id,
+        "routing_confidence": 1.0,
+    }
+    if reply.source == "bedrock":
+        structured_payload["model"] = "bedrock-health"
+    yield f"event: route\ndata: {json.dumps(structured_payload)}\n\n"
+
+    existing = repository.get_agent_session(session_id)
+    session = existing or AgentSession(
+        session_id=session_id,
+        household_id=household_id,
+        channel="web",
+        active_agent=AgentType.HEALTH,
+    )
+    session.active_agent = AgentType.HEALTH
+    session.messages.extend([
+        ChatMessage(role="user", content=user_message),
+        ChatMessage(role="assistant", content=reply.display_text),
+    ])
+    session.routing_history.append(
+        RoutingDecision(
+            agent=AgentType.HEALTH,
+            confidence=1.0,
+            handoff_reason="Health module invoked directly.",
+            continue_current=existing is not None and existing.active_agent == AgentType.HEALTH,
+            source=reply.source,
+            model=structured_payload["model"],
+        )
+    )
+    session.slots["health"] = health_advisor.extract_structured_signals(user_message, household_context)
+    session.last_triage = reply.triage.model_dump() if reply.triage else None
+    session.summary = SessionSummary(text=f"health: {reply.display_text[:180]}")
+    repository.upsert_agent_session(session)
+
     if reply.triage:
-        triage_data = {
-            "triage": {
-                "triage_level": reply.triage.triage_level.value,
-                "confidence_pct": reply.triage.confidence_pct,
-                "assessment_summary": reply.triage.assessment_summary,
-                "immediate_actions": reply.triage.immediate_actions,
-                "follow_up": reply.triage.follow_up,
-                "emergency_number": reply.triage.emergency_number,
-                "disclaimer": reply.triage.disclaimer,
-            }
-        }
+        triage_data = {"triage": reply.triage.model_dump()}
         yield f"event: triage\ndata: {json.dumps(triage_data)}\n\n"
 
     yield "data: [DONE]\n\n"
@@ -85,7 +117,7 @@ async def health_chat(request: HealthChatRequest):
     # Get household context if available
     household_context = {}
     if request.household_id:
-        household = get_household(request.household_id)
+        household = repository.get_household(request.household_id)
         if household:
             household_context = {
                 "name": household.name,
@@ -115,6 +147,8 @@ async def health_chat(request: HealthChatRequest):
             conversation_history=history,
             household_context=household_context,
             language=request.language,
+            session_id=request.session_id or "health-web-session",
+            household_id=request.household_id,
         ),
         media_type="text/event-stream",
         headers={

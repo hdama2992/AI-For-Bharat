@@ -12,7 +12,7 @@ from app.models.household import (
     OnboardExtractRequest,
     OnboardExtractResponse,
 )
-from app.db.memory import create_household, get_household
+from app.db.repository import repository
 from app.services.onboarding import onboarding_service
 
 router = APIRouter(prefix="/household", tags=["Household"])
@@ -26,14 +26,14 @@ async def create_household_endpoint(data: HouseholdCreate):
     dump["name"] = dump.get("name") or "Unknown"
     dump["state"] = dump.get("state") or "Unknown"
     dump["district"] = dump.get("district") or "Unknown"
-    household = create_household(dump)
+    household = repository.create_household(dump)
     return {"household_id": household.household_id}
 
 
 @router.get("/{household_id}", response_model=HouseholdResponse)
 async def get_household_endpoint(household_id: str):
     """Get household by ID"""
-    household = get_household(household_id)
+    household = repository.get_household(household_id)
     if not household:
         raise HTTPException(status_code=404, detail="Household not found")
     return household
@@ -56,7 +56,7 @@ async def get_context_insights(household_id: str):
 
     Returns format expected by frontend HouseholdContextBanner component
     """
-    household = get_household(household_id)
+    household = repository.get_household(household_id)
     if not household:
         raise HTTPException(status_code=404, detail="Household not found")
 

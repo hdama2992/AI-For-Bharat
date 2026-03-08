@@ -8,10 +8,12 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 from app.models.household import OnboardTurn
+from app.config import get_settings
 from app.services.agents.prompts import ONBOARD_EXTRACTION_PROMPT
 from app.services.bedrock import bedrock_service
 
 DATA_DIR = Path(__file__).parent.parent.parent / "data"
+settings = get_settings()
 
 
 def _load_names(filename: str, key: str) -> List[str]:
@@ -268,7 +270,13 @@ Pre-filled data: {json.dumps(prefill)}
 
 Return ONLY the JSON response, no other text."""
             messages = [{"role": "user", "content": prompt}]
-            response = bedrock_service.invoke_haiku(messages, system_prompt=ONBOARD_EXTRACTION_PROMPT)
+            response = bedrock_service.invoke(
+                messages,
+                system_prompt=ONBOARD_EXTRACTION_PROMPT,
+                model_id=settings.onboarding_model_id,
+                max_tokens=1024,
+                temperature=0.2,
+            )
             try:
                 raw = response.strip()
                 if raw.startswith("```"):

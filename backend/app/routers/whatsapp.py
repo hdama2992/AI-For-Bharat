@@ -8,19 +8,14 @@ from xml.sax.saxutils import escape
 
 import httpx
 from fastapi import APIRouter, Form, HTTPException, Request, Response
+from twilio.request_validator import RequestValidator
 
 from app.config import get_settings
-from app.db.memory import (
-    append_whatsapp_message,
-    get_whatsapp_media,
-    get_whatsapp_session,
-    get_whatsapp_status_events,
-    record_whatsapp_status_event,
-    store_whatsapp_media,
-)
+from app.db.repository import repository
+from app.models.chat import AgentType
 from app.models.health import ChatMessage
-from app.services.health_advisor import health_advisor
 from app.services.speech_provider import SpeechProviderError, speech_provider
+from app.services.orchestrator import orchestrator
 
 router = APIRouter(prefix="/whatsapp", tags=["WhatsApp"])
 settings = get_settings()
@@ -95,8 +90,8 @@ async def _create_voice_reply_url(text: str) -> str | None:
     except (binascii.Error, ValueError):
         return None
 
-    media_id = store_whatsapp_media(audio_bytes, "audio/wav")
-    return _build_media_url(media_id)
+    media_ref = repository.store_whatsapp_media(audio_bytes, "audio/wav", ttl_seconds=settings.s3_media_ttl_seconds)
+    return _build_media_url(media_ref.media_id)
 
 
 def _build_whatsapp_response(reply_text: str, media_url: str | None = None) -> str:
@@ -111,13 +106,23 @@ def _build_whatsapp_response(reply_text: str, media_url: str | None = None) -> s
 
 
 def _store_turn(from_number: str, role: str, content: str) -> None:
-    append_whatsapp_message(from_number, ChatMessage(role=role, content=content))
+    repository.append_whatsapp_message(from_number, message=ChatMessage(role=role, content=content))
+
+
+def _validate_twilio_signature(request: Request, form_data: dict) -> bool:
+    if not settings.twilio_validate_signature or not settings.twilio_auth_token:
+        return True
+    signature = request.headers.get("X-Twilio-Signature")
+    if not signature:
+        return False
+    validator = RequestValidator(settings.twilio_auth_token)
+    return validator.validate(str(request.url), form_data, signature)
 
 
 @router.get("/media/{media_id}")
 async def whatsapp_media(media_id: str):
     """Serve temporary audio replies for Twilio media delivery."""
-    payload = get_whatsapp_media(media_id)
+    payload = repository.get_whatsapp_media(media_id)
     if not payload:
         raise HTTPException(status_code=404, detail="Media not found or expired")
     return Response(content=payload["content"], media_type=payload["content_type"])
@@ -133,18 +138,19 @@ async def whatsapp_status_callback(request: Request):
     """
     form = await request.form()
     payload = {key: value for key, value in form.items()}
-    event = record_whatsapp_status_event(payload)
+    event = repository.record_whatsapp_status_event(payload)
     return {"received": True, "message_sid": event.get("MessageSid"), "status": event.get("MessageStatus")}
 
 
 @router.get("/status-callback/recent")
 async def whatsapp_status_recent(limit: int = 20):
     """Inspect recent Twilio status callbacks during development/demo."""
-    return {"events": get_whatsapp_status_events(limit=limit)}
+    return {"events": repository.get_whatsapp_status_events(limit=limit)}
 
 
 @router.post("/webhook")
 async def whatsapp_webhook(
+    request: Request,
     From: str = Form(...),
     Body: str = Form(default=""),
     NumMedia: int = Form(default=0),
@@ -159,6 +165,16 @@ async def whatsapp_webhook(
     - Voice notes with STT attempt, TTS/media reply attempt, and text fallback
     """
     try:
+        form_data = {
+            "From": From,
+            "Body": Body,
+            "NumMedia": str(NumMedia),
+            "MediaUrl0": MediaUrl0,
+            "MediaContentType0": MediaContentType0,
+        }
+        if not _validate_twilio_signature(request, form_data):
+            raise HTTPException(status_code=403, detail="Invalid Twilio signature")
+
         user_text = Body.strip()
         received_voice = False
 
@@ -179,16 +195,17 @@ async def whatsapp_webhook(
             )
             return Response(content=_build_whatsapp_response(intro), media_type="application/xml")
 
-        history = get_whatsapp_session(From)
         _store_turn(From, "user", user_text)
-
-        reply = health_advisor.generate_reply(
-            user_message=user_text,
-            conversation_history=history,
-            household_context=None,
+        route_response = orchestrator.route_turn(
+            session_id=f"wa-{From.replace(':', '-').replace('+', '')}",
+            channel="whatsapp",
+            message=user_text,
+            household_id=None,
             language="hi",
+            force_agent=AgentType.HEALTH if received_voice else None,
+            whatsapp_from_number=From,
         )
-        reply_text = reply.display_text
+        reply_text = route_response.reply_text
         _store_turn(From, "assistant", reply_text)
 
         media_url = None

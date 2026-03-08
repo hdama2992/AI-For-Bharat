@@ -1,5 +1,7 @@
 const BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 
+export type AgentType = "supervisor" | "health" | "onboarding" | "mandi" | "fallback";
+
 export interface FamilyMember {
   name: string;
   age: number;
@@ -92,6 +94,37 @@ export interface TriageResult {
   disclaimer: string;
 }
 
+export interface ChatRouteResponse {
+  agent: AgentType;
+  model: string;
+  source: "bedrock" | "fallback";
+  handoff_reason: string;
+  reply_text: string;
+  structured_payload?: Record<string, unknown> | null;
+  session_id: string;
+  routing_confidence: number;
+}
+
+export interface AgentSessionView {
+  session_id: string;
+  household_id?: string | null;
+  channel: "web" | "whatsapp";
+  active_agent: AgentType;
+  messages: Array<{ role: "user" | "assistant"; content: string }>;
+  routing_history: Array<{
+    agent: AgentType;
+    confidence: number;
+    handoff_reason: string;
+    continue_current: boolean;
+    source: "bedrock" | "fallback";
+    model?: string | null;
+  }>;
+  slots: Record<string, Record<string, unknown>>;
+  summary: { text: string; updated_at: string };
+  last_triage?: TriageResult | null;
+  updated_at: string;
+}
+
 export async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     headers: { "Content-Type": "application/json", ...options?.headers },
@@ -149,4 +182,26 @@ export async function extractOnboardingData(
     method: "POST",
     body: JSON.stringify({ turns, prefill: prefill ?? {} }),
   });
+}
+
+export async function routeChatTurn(payload: {
+  session_id: string;
+  channel: "web" | "whatsapp";
+  message: string;
+  household_id?: string;
+  language?: "en" | "hi";
+}) {
+  return apiFetch<ChatRouteResponse>("/chat/route", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function getChatSession(sessionId: string) {
+  return apiFetch<AgentSessionView>(`/chat/session/${sessionId}`);
+}
+
+export async function listChatSessions(householdId?: string) {
+  const params = householdId ? `?household_id=${encodeURIComponent(householdId)}` : "";
+  return apiFetch<{ sessions: AgentSessionView[] }>(`/chat/sessions${params}`);
 }

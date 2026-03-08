@@ -6,6 +6,7 @@ from typing import Dict, List, Optional
 from datetime import datetime, timedelta
 import uuid
 
+from app.models.chat import AgentSession
 from app.models.household import Household, FamilyMember
 from app.models.health import ChatMessage, HealthSession
 
@@ -13,6 +14,7 @@ from app.models.health import ChatMessage, HealthSession
 # In-memory stores
 HOUSEHOLDS: Dict[str, Household] = {}
 HEALTH_SESSIONS: Dict[str, HealthSession] = {}
+AGENT_SESSIONS: Dict[str, AgentSession] = {}
 WHATSAPP_SESSIONS: Dict[str, List[ChatMessage]] = {}
 WHATSAPP_MEDIA: Dict[str, dict] = {}
 WHATSAPP_STATUS_EVENTS: List[dict] = []
@@ -102,6 +104,27 @@ def update_health_session(session: HealthSession) -> HealthSession:
     key = f"{session.household_id}:{session.session_id}"
     HEALTH_SESSIONS[key] = session
     return session
+
+
+def get_agent_session(session_id: str) -> Optional[AgentSession]:
+    """Get orchestrated agent session."""
+    return AGENT_SESSIONS.get(session_id)
+
+
+def upsert_agent_session(session: AgentSession) -> AgentSession:
+    """Store orchestrated agent session."""
+    session.updated_at = datetime.utcnow()
+    AGENT_SESSIONS[session.session_id] = session
+    return session
+
+
+def list_agent_sessions(household_id: Optional[str] = None, limit: int = 20) -> List[AgentSession]:
+    """List recent agent sessions."""
+    sessions = list(AGENT_SESSIONS.values())
+    if household_id:
+        sessions = [session for session in sessions if session.household_id == household_id]
+    sessions.sort(key=lambda item: item.updated_at, reverse=True)
+    return sessions[:limit]
 
 
 def get_whatsapp_session(from_number: str) -> List[ChatMessage]:

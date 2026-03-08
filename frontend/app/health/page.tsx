@@ -2,7 +2,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-import { TriageResult } from "@/lib/api";
+import { ChatRouteResponse, TriageResult } from "@/lib/api";
 
 const BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 
@@ -59,6 +59,7 @@ export default function HealthPage() {
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [triage, setTriage] = useState<TriageResult | null>(null);
+  const [routeMeta, setRouteMeta] = useState<ChatRouteResponse | null>(null);
   const [sessionId] = useState(() => Math.random().toString(36).slice(2));
   const [lang, setLang] = useState<"en" | "hi">("en");
   const [householdId, setHouseholdId] = useState("demo-rajesh-001");
@@ -132,6 +133,11 @@ export default function HealthPage() {
                 if (parsed.triage) setTriage(parsed.triage);
               } catch {}
               lastEventType = "message";
+            } else if (lastEventType === "route") {
+              try {
+                setRouteMeta(JSON.parse(data));
+              } catch {}
+              lastEventType = "message";
             } else {
               fullText += data;
               setMessages(prev => {
@@ -193,6 +199,7 @@ export default function HealthPage() {
       content: "Namaste 🙏 I'm Vikas, your health advisor. Please tell me — what symptoms are you or a family member experiencing?\n\nनमस्ते 🙏 मैं विकास हूं, आपका स्वास्थ्य सहायक। बताइए — आप या आपके परिवार में क्या तकलीफ है?",
     }]);
     setTriage(null);
+    setRouteMeta(null);
     setInput("");
   };
 
@@ -299,6 +306,18 @@ export default function HealthPage() {
               )}
 
               <p className="text-xs text-gray-400 italic">{triage.disclaimer}</p>
+            </div>
+          </div>
+        )}
+
+        {routeMeta && (
+          <div className="mx-2 mt-3 rounded-2xl border border-sky-200 bg-sky-50 p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-sky-700">Agent Debug</p>
+            <div className="mt-2 space-y-1 text-sm text-sky-900">
+              <p><span className="font-medium">Agent:</span> {routeMeta.agent}</p>
+              <p><span className="font-medium">Model:</span> {routeMeta.model}</p>
+              <p><span className="font-medium">Source:</span> {routeMeta.source}</p>
+              <p><span className="font-medium">Reason:</span> {routeMeta.handoff_reason}</p>
             </div>
           </div>
         )}

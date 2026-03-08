@@ -124,6 +124,14 @@ class HealthAdvisor:
             household_context=household_context,
         )
 
+    def extract_structured_signals(
+        self,
+        user_message: str,
+        household_context: Optional[Dict] = None,
+    ) -> Dict:
+        """Expose normalized health slots for session persistence and demos."""
+        return self._extract_signals(user_message.lower(), household_context)
+
     def _generate_fallback_reply(
         self,
         user_message: str,

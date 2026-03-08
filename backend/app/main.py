@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from app.config import get_settings
-from app.routers import household, mandi, health, pest, voice, whatsapp
+from app.routers import household, mandi, health, pest, voice, whatsapp, chat
 from app.db.memory import init_demo_data
 
 settings = get_settings()
@@ -42,7 +42,7 @@ app = FastAPI(
     - **Household Management**: Family profile and context
     
     ### Tech Stack:
-    - Amazon Bedrock (Claude 3.5 Sonnet)
+    - Amazon Bedrock (Claude Sonnet + Haiku)
     - Sarvam API (Indian-language speech)
     - FastAPI + SSE Streaming
     
@@ -66,6 +66,7 @@ app.add_middleware(
 app.include_router(household.router, prefix="/api/v1")
 app.include_router(mandi.router, prefix="/api/v1")
 app.include_router(health.router, prefix="/api/v1")
+app.include_router(chat.router, prefix="/api/v1")
 app.include_router(pest.router, prefix="/api/v1")
 app.include_router(voice.router, prefix="/api/v1")
 app.include_router(whatsapp.router, prefix="/api/v1")
@@ -97,6 +98,7 @@ async def api_root():
             "household": "/api/v1/household",
             "mandi": "/api/v1/mandi",
             "health": "/api/v1/health",
+            "chat": "/api/v1/chat",
             "pest": "/api/v1/pest",
         },
     }

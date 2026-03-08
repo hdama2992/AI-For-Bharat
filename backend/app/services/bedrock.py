@@ -5,12 +5,14 @@ Auth via AWS_BEARER_TOKEN_BEDROCK env var (Bedrock API key) — picked up by bot
 from __future__ import annotations
 
 import json
+import os
 from typing import Dict, Generator, List, Optional
 
 import boto3
 from app.config import get_settings
 
 settings = get_settings()
+os.environ.setdefault("AWS_EC2_METADATA_DISABLED", "true")
 
 
 class BedrockService:
@@ -23,13 +25,14 @@ class BedrockService:
     def _init_client(self):
         try:
             # Ensure AWS_BEARER_TOKEN_BEDROCK is in os.environ for boto3
-            import os
             if settings.aws_bearer_token_bedrock:
                 os.environ["AWS_BEARER_TOKEN_BEDROCK"] = settings.aws_bearer_token_bedrock
             kwargs: dict = {"region_name": settings.aws_region}
             if settings.aws_access_key_id and settings.aws_secret_access_key:
                 kwargs["aws_access_key_id"] = settings.aws_access_key_id
                 kwargs["aws_secret_access_key"] = settings.aws_secret_access_key
+            if settings.aws_session_token:
+                kwargs["aws_session_token"] = settings.aws_session_token
             session = boto3.Session(**kwargs)
             self.runtime_client = session.client("bedrock-runtime")
         except Exception as e:
