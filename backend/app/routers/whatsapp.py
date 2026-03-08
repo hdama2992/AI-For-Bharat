@@ -4,7 +4,6 @@ WhatsApp webhook and temporary media hosting for the prototype.
 from __future__ import annotations
 import base64
 import binascii
-import os
 from xml.sax.saxutils import escape
 
 import httpx
@@ -20,8 +19,8 @@ from app.db.memory import (
     store_whatsapp_media,
 )
 from app.models.health import ChatMessage
-from app.services.bhashini import bhashini_service
 from app.services.health_advisor import health_advisor
+from app.services.speech_provider import SpeechProviderError, speech_provider
 
 router = APIRouter(prefix="/whatsapp", tags=["WhatsApp"])
 settings = get_settings()
@@ -58,74 +57,38 @@ def _voice_retry_message() -> str:
     )
 
 
-async def _transcribe_audio_google(audio_bytes: bytes) -> str:
-    """Convert WhatsApp voice note (OGG/Opus) to text using Google Web Speech API."""
-    import io
-    import tempfile
-
-    import speech_recognition as sr
-    from pydub import AudioSegment
-
-    # Convert OGG/Opus → WAV (Google Speech needs WAV/FLAC)
-    audio = AudioSegment.from_ogg(io.BytesIO(audio_bytes))
-    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
-        audio.export(tmp.name, format="wav")
-        tmp_path = tmp.name
-
-    recognizer = sr.Recognizer()
-    with sr.AudioFile(tmp_path) as source:
-        audio_data = recognizer.record(source)
-
-    text = ""
+async def _transcribe_audio(audio_bytes: bytes) -> str:
+    """Transcribe using the configured provider."""
     try:
-        # Try Hindi first, then English
-        text = recognizer.recognize_google(audio_data, language="hi-IN")
-    except sr.UnknownValueError:
-        try:
-            text = recognizer.recognize_google(audio_data, language="en-IN")
-        except sr.UnknownValueError:
-            text = ""
+        transcript = await speech_provider.speech_to_text(
+            audio_bytes=audio_bytes,
+            source_lang="hi",
+        )
+    except SpeechProviderError as exc:
+        print(f"Speech-to-text failed: {exc}")
+        return ""
 
-    os.unlink(tmp_path)
-    return text.strip()
-
-
-async def _transcribe_audio_bhashini(audio_bytes: bytes) -> str:
-    """Transcribe using Bhashini STT (requires API registration)."""
-    audio_b64 = base64.standard_b64encode(audio_bytes).decode("utf-8")
-    transcript = await bhashini_service.speech_to_text(
-        audio_base64=audio_b64,
-        source_lang="hi",
-    )
-    if not transcript or transcript.startswith("["):
+    if not transcript:
         return ""
     return transcript.strip()
 
 
-async def _transcribe_audio(audio_bytes: bytes) -> str:
-    """Transcribe audio: try Google Speech first, fall back to Bhashini."""
-    try:
-        result = await _transcribe_audio_google(audio_bytes)
-        if result:
-            return result
-    except Exception as exc:
-        print(f"Google STT failed, trying Bhashini: {exc}")
-
-    try:
-        return await _transcribe_audio_bhashini(audio_bytes)
-    except Exception as exc:
-        print(f"Bhashini STT also failed: {exc}")
-        return ""
-
-
 async def _create_voice_reply_url(text: str) -> str | None:
-    audio_b64 = await bhashini_service.text_to_speech(
-        text=text,
-        target_lang="hi",
-        gender="female",
-    )
+    try:
+        audio_b64 = await speech_provider.text_to_speech(
+            text=text,
+            target_lang="hi",
+            gender="female",
+        )
+    except SpeechProviderError as exc:
+        print(f"Text-to-speech failed: {exc}")
+        return None
+
     if not audio_b64:
         return None
+
+    if audio_b64.startswith("data:"):
+        _, _, audio_b64 = audio_b64.partition(",")
 
     try:
         audio_bytes = base64.b64decode(audio_b64)
@@ -225,14 +188,15 @@ async def whatsapp_webhook(
             household_context=None,
             language="hi",
         )
-        _store_turn(From, "assistant", reply.display_text)
+        reply_text = reply.display_text
+        _store_turn(From, "assistant", reply_text)
 
         media_url = None
         if received_voice:
-            media_url = await _create_voice_reply_url(reply.display_text)
+            media_url = await _create_voice_reply_url(reply_text)
 
         return Response(
-            content=_build_whatsapp_response(reply.display_text, media_url=media_url),
+            content=_build_whatsapp_response(reply_text, media_url=media_url),
             media_type="application/xml",
         )
     except Exception as exc:

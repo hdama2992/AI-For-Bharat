@@ -1,14 +1,17 @@
 """
-Voice API Router for Bhashini Integration
+Voice API Router for speech provider integration
 - Speech-to-Text (ASR)
 - Text-to-Speech (TTS)
 - Translation
 """
+import base64
+import binascii
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import Literal, Optional
+from typing import Literal
 
-from app.services.bhashini import bhashini_service
+from app.services.speech_provider import SpeechProviderError, speech_provider
 
 router = APIRouter(prefix="/voice", tags=["Voice"])
 
@@ -54,41 +57,45 @@ class TranslateResponse(BaseModel):
 
 @router.post("/stt", response_model=STTResponse)
 async def speech_to_text(request: STTRequest):
-    """Convert speech audio to text using Bhashini ASR"""
-    text = await bhashini_service.speech_to_text(
-        audio_base64=request.audio_base64,
-        source_lang=request.source_language,
-    )
-    
-    if not text:
-        raise HTTPException(status_code=500, detail="Failed to transcribe audio")
-    
+    """Convert speech audio to text using the configured speech provider."""
+    try:
+        audio_bytes = base64.b64decode(request.audio_base64)
+        text = await speech_provider.speech_to_text(
+            audio_bytes=audio_bytes,
+            source_lang=request.source_language,
+        )
+    except (ValueError, binascii.Error, SpeechProviderError) as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
     return STTResponse(text=text, language=request.source_language)
 
 
 @router.post("/tts", response_model=TTSResponse)
 async def text_to_speech(request: TTSRequest):
-    """Convert text to speech audio using Bhashini TTS"""
-    audio_b64 = await bhashini_service.text_to_speech(
-        text=request.text,
-        target_lang=request.target_language,
-        gender=request.gender,
-    )
-    
-    if not audio_b64:
-        raise HTTPException(status_code=500, detail="Failed to generate speech")
-    
+    """Convert text to speech using the configured speech provider."""
+    try:
+        audio_b64 = await speech_provider.text_to_speech(
+            text=request.text,
+            target_lang=request.target_language,
+            gender=request.gender,
+        )
+    except SpeechProviderError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
     return TTSResponse(audio_base64=audio_b64, language=request.target_language)
 
 
 @router.post("/translate", response_model=TranslateResponse)
 async def translate_text(request: TranslateRequest):
-    """Translate text between languages using Bhashini NMT"""
-    translated = await bhashini_service.translate(
-        text=request.text,
-        source_lang=request.source_language,
-        target_lang=request.target_language,
-    )
+    """Translate text between languages using the configured speech provider."""
+    try:
+        translated = await speech_provider.translate(
+            text=request.text,
+            source_lang=request.source_language,
+            target_lang=request.target_language,
+        )
+    except SpeechProviderError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
     
     return TranslateResponse(
         translated_text=translated,
@@ -99,21 +106,5 @@ async def translate_text(request: TranslateRequest):
 
 @router.get("/languages")
 async def get_supported_languages():
-    """Get list of supported languages"""
-    return {
-        "languages": [
-            {"code": "en", "name": "English", "name_native": "English"},
-            {"code": "hi", "name": "Hindi", "name_native": "हिंदी"},
-            {"code": "ta", "name": "Tamil", "name_native": "தமிழ்"},
-            {"code": "te", "name": "Telugu", "name_native": "తెలుగు"},
-            {"code": "kn", "name": "Kannada", "name_native": "ಕನ್ನಡ"},
-            {"code": "ml", "name": "Malayalam", "name_native": "മലയാളം"},
-            {"code": "mr", "name": "Marathi", "name_native": "मराठी"},
-            {"code": "bn", "name": "Bengali", "name_native": "বাংলা"},
-            {"code": "gu", "name": "Gujarati", "name_native": "ગુજરાતી"},
-            {"code": "pa", "name": "Punjabi", "name_native": "ਪੰਜਾਬੀ"},
-            {"code": "or", "name": "Odia", "name_native": "ଓଡ଼ିଆ"},
-            {"code": "as", "name": "Assamese", "name_native": "অসমীয়া"},
-        ]
-    }
-
+    """Get list of supported languages for the configured provider."""
+    return {"languages": speech_provider.get_supported_languages()}

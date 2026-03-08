@@ -28,12 +28,24 @@ class Settings(BaseSettings):
     bedrock_model_id: str = "global.anthropic.claude-opus-4-6-v1"
     bedrock_haiku_model_id: str = "global.anthropic.claude-opus-4-6-v1"
     
-    # Bhashini API
+    # Legacy Bhashini API settings (unused in the Sarvam-first path)
     bhashini_user_id: Optional[str] = None
     bhashini_api_key: Optional[str] = None
     bhashini_pipeline_url: str = "https://meity-auth.ulcacontrib.org/ulca/apis/v0/model/getModelsPipeline"
     bhashini_inference_url: str = "https://dhruva-api.bhashini.gov.in/services/inference/pipeline"
-    
+
+    # Speech provider
+    speech_provider: str = "sarvam"
+
+    # Sarvam API
+    sarvam_api_key: Optional[str] = None
+    sarvam_base_url: str = "https://api.sarvam.ai"
+    sarvam_stt_model: str = "saaras:v3"
+    sarvam_tts_model: str = "bulbul:v3"
+    sarvam_translate_model: str = "sarvam-translate:v1"
+    sarvam_tts_speaker: str = "Shubh"
+    sarvam_tts_sample_rate: int = 24000
+
     # DynamoDB (optional - use in-memory for prototype)
     use_dynamodb: bool = False
     dynamodb_table_prefix: str = "vikasgpt_"

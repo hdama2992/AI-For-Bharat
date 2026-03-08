@@ -43,7 +43,7 @@ app = FastAPI(
     
     ### Tech Stack:
     - Amazon Bedrock (Claude 3.5 Sonnet)
-    - Bhashini API (22 Indian languages)
+    - Sarvam API (Indian-language speech)
     - FastAPI + SSE Streaming
     
     ### AI for Bharat Hackathon 2026
@@ -106,4 +106,3 @@ async def api_root():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
-

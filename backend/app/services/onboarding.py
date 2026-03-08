@@ -148,7 +148,7 @@ def _infer_gender(fragment: str, relation: str) -> str | None:
 
 def _extract_family(answer: str, household_name: str | None) -> List[Dict[str, Any]]:
     family_members: List[Dict[str, Any]] = []
-    segments = [segment.strip() for segment in re.split(r"[.;\n]| and | aur ", answer, flags=re.I) if segment.strip()]
+    segments = [segment.strip() for segment in re.split(r"[,.;\n]| and | aur ", answer, flags=re.I) if segment.strip()]
 
     for segment in segments:
         age_match = re.search(r"(\d{1,2})", segment)

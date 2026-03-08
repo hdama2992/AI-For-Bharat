@@ -18,7 +18,7 @@ The backend currently supports these WhatsApp-related endpoints:
 The current WhatsApp behavior is:
 
 1. Twilio sends an incoming text or voice note to `/api/v1/whatsapp/webhook`.
-2. If the message is a voice note, the backend tries to transcribe it using Bhashini.
+2. If the message is a voice note, the backend tries to transcribe it using Sarvam.
 3. The backend generates a health response using the shared health advisor service.
 4. If TTS is available, the backend generates a temporary hosted audio reply.
 5. If TTS is not available, the backend falls back to a text reply.
@@ -50,11 +50,12 @@ TWILIO_WHATSAPP_NUMBER=whatsapp:+14155238886
 CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
 ```
 
-Optional for real voice transcription and voice reply:
+Required for real voice transcription and voice reply:
 
 ```env
-BHASHINI_USER_ID=...
-BHASHINI_API_KEY=...
+SPEECH_PROVIDER=sarvam
+SARVAM_API_KEY=...
+SARVAM_BASE_URL=https://api.sarvam.ai
 ```
 
 Optional for Bedrock-backed health generation instead of fallback-only logic:
@@ -213,7 +214,7 @@ Once Twilio is configured:
 2. verify the bot replies
 3. check `/api/v1/whatsapp/status-callback/recent`
 4. then send a short voice note
-5. if Bhashini is configured, verify voice or text reply
+5. if Sarvam is configured, verify voice or text reply
 6. check `/api/v1/whatsapp/status-callback/recent` again
 
 Recommended first text:
@@ -244,7 +245,7 @@ This still returns structured triage levels:
 - `YELLOW`
 - `RED`
 
-### If Bhashini is unavailable
+### If Sarvam is unavailable
 
 Text messages still work.
 
@@ -310,5 +311,5 @@ Check:
 3. test text message flow first
 4. test status callback flow second
 5. test voice-note flow third
-6. add Bhashini credentials if you want real voice transcription and voice replies
+6. add Sarvam credentials if you want real voice transcription and voice replies
 7. optionally add Bedrock credentials if you want live LLM responses instead of fallback-only behavior

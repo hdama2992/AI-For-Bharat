@@ -7,7 +7,7 @@ It is written for a live demo with judges, using:
 - local frontend
 - backend running in GitHub Codespaces
 - Twilio WhatsApp Sandbox
-- optional Bhashini voice
+- optional Sarvam voice
 - optional Bedrock health generation
 
 ## Prototype Scope
@@ -127,7 +127,7 @@ curl https://<your-public-base-url>/api/v1
 
 If enabled:
 
-- Bhashini credentials configured
+- Sarvam credentials configured
 - Bedrock credentials configured
 
 If not enabled:
@@ -233,8 +233,8 @@ Send a short voice note from your phone.
 
 Expected result:
 
-- if Bhashini is configured: voice note is processed and a voice or text reply is returned
-- if Bhashini is not configured: fallback prompt asks the user to retry or type
+- if Sarvam is configured: voice note is processed and a voice or text reply is returned
+- if Sarvam is not configured: fallback prompt asks the user to retry or type
 
 Talk track:
 
@@ -262,7 +262,7 @@ My 8 year old daughter has 103 F fever and vomiting since morning
 
 ## What To Show If Something Fails
 
-### If Bhashini voice fails
+### If Sarvam voice fails
 
 Show:
 
@@ -343,7 +343,7 @@ curl https://<your-public-base-url>/api/v1/whatsapp/status-callback/recent
 
 - WhatsApp status history is stored in memory only
 - restarting the backend clears status history
-- voice-note quality depends on Bhashini being configured and responding
+- voice-note quality depends on Sarvam being configured and responding
 - Twilio Sandbox is not a production WhatsApp number
 - current demo scope does not include Pest in the surfaced flow
 
