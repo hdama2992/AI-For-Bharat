@@ -4,6 +4,7 @@ WhatsApp webhook and temporary media hosting for the prototype.
 from __future__ import annotations
 import base64
 import binascii
+import os
 from xml.sax.saxutils import escape
 
 import httpx
@@ -57,7 +58,40 @@ def _voice_retry_message() -> str:
     )
 
 
-async def _transcribe_audio(audio_bytes: bytes) -> str:
+async def _transcribe_audio_google(audio_bytes: bytes) -> str:
+    """Convert WhatsApp voice note (OGG/Opus) to text using Google Web Speech API."""
+    import io
+    import tempfile
+
+    import speech_recognition as sr
+    from pydub import AudioSegment
+
+    # Convert OGG/Opus → WAV (Google Speech needs WAV/FLAC)
+    audio = AudioSegment.from_ogg(io.BytesIO(audio_bytes))
+    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
+        audio.export(tmp.name, format="wav")
+        tmp_path = tmp.name
+
+    recognizer = sr.Recognizer()
+    with sr.AudioFile(tmp_path) as source:
+        audio_data = recognizer.record(source)
+
+    text = ""
+    try:
+        # Try Hindi first, then English
+        text = recognizer.recognize_google(audio_data, language="hi-IN")
+    except sr.UnknownValueError:
+        try:
+            text = recognizer.recognize_google(audio_data, language="en-IN")
+        except sr.UnknownValueError:
+            text = ""
+
+    os.unlink(tmp_path)
+    return text.strip()
+
+
+async def _transcribe_audio_bhashini(audio_bytes: bytes) -> str:
+    """Transcribe using Bhashini STT (requires API registration)."""
     audio_b64 = base64.standard_b64encode(audio_bytes).decode("utf-8")
     transcript = await bhashini_service.speech_to_text(
         audio_base64=audio_b64,
@@ -66,6 +100,22 @@ async def _transcribe_audio(audio_bytes: bytes) -> str:
     if not transcript or transcript.startswith("["):
         return ""
     return transcript.strip()
+
+
+async def _transcribe_audio(audio_bytes: bytes) -> str:
+    """Transcribe audio: try Google Speech first, fall back to Bhashini."""
+    try:
+        result = await _transcribe_audio_google(audio_bytes)
+        if result:
+            return result
+    except Exception as exc:
+        print(f"Google STT failed, trying Bhashini: {exc}")
+
+    try:
+        return await _transcribe_audio_bhashini(audio_bytes)
+    except Exception as exc:
+        print(f"Bhashini STT also failed: {exc}")
+        return ""
 
 
 async def _create_voice_reply_url(text: str) -> str | None:

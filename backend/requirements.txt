@@ -17,6 +17,10 @@ aiohttp>=3.9.0
 # Twilio (WhatsApp integration)
 twilio>=8.10.0
 
+# Speech recognition (Google Web Speech for WhatsApp voice notes)
+SpeechRecognition>=3.10.0
+pydub>=0.25.1
+
 # Utils
 python-dotenv>=1.0.0
 

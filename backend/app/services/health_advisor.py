@@ -25,7 +25,7 @@ YELLOW_FLAG_TERMS = {
     "vomiting": ["vomit", "vomiting", "उल्टी"],
     "stomach pain": ["stomach", " पेट", " पेट ", "abdominal", "पेट दर्द"],
     "cough": ["cough", "खांसी", "cold", "ज़ुकाम", "जुकाम"],
-    "headache": ["headache", "सिरदर्द", "head pain"],
+    "headache": ["headache", "head ache", "head pain", "सिरदर्द", "sir dard", "sar dard"],
     "weakness": ["weak", "weakness", "कमज़ोरी", "thakan", "tired"],
 }
 CHILD_TERMS = ["child", "daughter", "son", "baby", "kid", "बच्चा", "बेटी", "बेटा"]
@@ -191,8 +191,12 @@ class HealthAdvisor:
         duration_match = re.search(r"(\d+)\s*(?:day|days|din|दिवस|दिन)", lowered)
         if duration_match:
             duration_days = int(duration_match.group(1))
+        elif re.search(r"(\d+)\s*(?:hour|hours|hrs|hr|ghante|घंटे)", lowered):
+            duration_days = 1
         elif "since morning" in lowered or "today" in lowered or "आज" in lowered:
             duration_days = 1
+        elif "yesterday" in lowered or "since last" in lowered or "kal se" in lowered or "कल से" in lowered:
+            duration_days = 2
 
         is_pregnant = any(term in lowered for term in PREGNANCY_TERMS)
         if not is_pregnant and household_context:
@@ -219,7 +223,10 @@ class HealthAdvisor:
             or signals["duration_days"] is not None
         )
         prior_user_turns = len([msg for msg in conversation_history if msg.role == "user"])
-        return not has_context and prior_user_turns == 0
+        # Don't ask for clarification if we already asked once (prior turns > 0)
+        if prior_user_turns > 0:
+            return False
+        return not has_context
 
     def _assess_triage(self, signals: Dict) -> TriageResult:
         text = signals["text"]

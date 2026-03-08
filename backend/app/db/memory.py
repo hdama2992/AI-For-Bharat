@@ -35,8 +35,7 @@ def init_demo_data():
             land_acres=5.0,
             family_members=[
                 FamilyMember(name="Rajesh Kumar", age=42, relation="self", gender="male"),
-                FamilyMember(name="Sunita Devi", age=38, relation="spouse", gender="female"),
-                FamilyMember(name="Priya", age=16, relation="daughter", gender="female"),
+                FamilyMember(name="Priya", age=25, relation="spouse", gender="female", is_pregnant=True),
                 FamilyMember(name="Amit", age=12, relation="son", gender="male"),
                 FamilyMember(name="Ramesh Kumar", age=68, relation="father", gender="male", chronic_conditions=["diabetes"]),
             ],
