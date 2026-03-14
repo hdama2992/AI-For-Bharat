@@ -1,0 +1,53 @@
+{
+  "crops": [
+    {
+      "name": "Soybean",
+      "name_hi": "सोयाबीन",
+      "msp_2025": 4892,
+      "season": "kharif"
+    },
+    {
+      "name": "Wheat",
+      "name_hi": "गेहूं",
+      "msp_2025": 2425,
+      "season": "rabi"
+    },
+    {
+      "name": "Rice",
+      "name_hi": "धान",
+      "msp_2025": 2320,
+      "season": "kharif"
+    },
+    {
+      "name": "Cotton",
+      "name_hi": "कपास",
+      "msp_2025": 7121,
+      "season": "kharif"
+    },
+    {
+      "name": "Gram",
+      "name_hi": "चना",
+      "msp_2025": 5650,
+      "season": "rabi"
+    },
+    {
+      "name": "Mustard",
+      "name_hi": "सरसों",
+      "msp_2025": 5850,
+      "season": "rabi"
+    },
+    {
+      "name": "Groundnut",
+      "name_hi": "मूंगफली",
+      "msp_2025": 6783,
+      "season": "kharif"
+    },
+    {
+      "name": "Maize",
+      "name_hi": "मक्का",
+      "msp_2025": 2225,
+      "season": "kharif"
+    }
+  ]
+}
+

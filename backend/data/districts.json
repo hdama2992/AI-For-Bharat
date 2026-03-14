@@ -1,0 +1,45 @@
+{
+  "districts": [
+    {
+      "name": "Harda",
+      "name_hi": "हरदा",
+      "state": "Madhya Pradesh"
+    },
+    {
+      "name": "Bhopal",
+      "name_hi": "भोपाल",
+      "state": "Madhya Pradesh"
+    },
+    {
+      "name": "Indore",
+      "name_hi": "इंदौर",
+      "state": "Madhya Pradesh"
+    },
+    {
+      "name": "Dewas",
+      "name_hi": "देवास",
+      "state": "Madhya Pradesh"
+    },
+    {
+      "name": "Ujjain",
+      "name_hi": "उज्जैन",
+      "state": "Madhya Pradesh"
+    },
+    {
+      "name": "Vidisha",
+      "name_hi": "विदिशा",
+      "state": "Madhya Pradesh"
+    },
+    {
+      "name": "Sehore",
+      "name_hi": "सीहोर",
+      "state": "Madhya Pradesh"
+    },
+    {
+      "name": "Raisen",
+      "name_hi": "रायसेन",
+      "state": "Madhya Pradesh"
+    }
+  ]
+}
+
